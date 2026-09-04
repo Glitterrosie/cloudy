@@ -35,8 +35,8 @@ export default function App() {
   const stats = useMemo(() => selectStats(state), [state])
   const { raining, drops } = useRain(stats.intensity, { enabled: visible })
 
-  const setCap = useCallback((cap) => dispatch({ type: 'SET_CAP', cap }), [])
-  useCloudCap(skyRef, setCap)
+  const setSky = useCallback(({ cap, aspect }) => dispatch({ type: 'SET_SKY', cap, aspect }), [])
+  useCloudCap(skyRef, setSky)
 
   const reset = useCallback(() => {
     setOpenGroupId(null)
@@ -78,12 +78,14 @@ export default function App() {
     setOpenGroupId(cloud.groupId)
   }, [])
 
-  const evaporated = useCallback((id) => dispatch({ type: 'REMOVE_CLOUD', id }), [])
+  const settleCloud = useCallback((id) => dispatch({ type: 'SETTLE_CLOUD', id }), [])
 
   const buyStorage = useCallback(() => {
     if (!stats.atCap) setStormToken((t) => t + 1)
     dispatch({ type: 'BUY_STORAGE' })
   }, [stats.atCap])
+
+  const addPhotos = useCallback(() => dispatch({ type: 'ADD_PHOTOS' }), [])
 
   const confirmDelete = useCallback(
     (keptIds) => {
@@ -99,11 +101,7 @@ export default function App() {
 
   // Weighted by how many duplicate clouds are left rather than by their share, so
   // the opening sky reads as genuinely heavy and clearing it really lifts the light.
-  const clearness = 1 - clamp(stats.similarCount / 5, 0, 1)
-
-  const hint = stats.cleared
-    ? 'Nothing left to clean. Enjoy the sky.'
-    : 'Tap a slate-blue cloud to see what is inside it.'
+  const clearness = 1 - clamp(stats.similarCount / 6, 0, 1)
 
   return (
     <div className="app">
@@ -151,14 +149,18 @@ export default function App() {
             freedPhotos={state.freedPhotos}
             reducedMotion={reducedMotion}
             onOpenCloud={openCloud}
-            onEvaporated={evaporated}
+            onSettled={settleCloud}
           />
-
-          <Controls onBuy={buyStorage} nudge={state.nudge} hint={hint} />
         </div>
       </div>
 
-      <p className="tagline">Cloudy — your photos, as weather. A concept for Dutch Design Week.</p>
+      {/* Outside the phone: these stand in for real-world actions, not widget UI. */}
+      <Controls
+        onBuyStorage={buyStorage}
+        onAddPhotos={addPhotos}
+        nudge={state.nudge}
+        nudgeToken={state.nudgeToken}
+      />
 
       {openGroup && (
         <GalleryModal

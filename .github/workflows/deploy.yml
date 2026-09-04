@@ -25,7 +25,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # enablement lets this workflow turn Pages on by itself the first time,
+      # so a fresh clone of this repo deploys without a manual settings step.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

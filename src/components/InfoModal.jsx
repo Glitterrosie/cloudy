@@ -56,8 +56,13 @@ export function InfoModal({ onClose }) {
 
           <p>
             The more near-duplicate clouds you carry, the more often it rains on your screen. Clean
-            a stack out and the cloud empties, lifts, and the sky brightens. Buy more storage
-            instead and you simply get more clouds.
+            a stack out and its cloud turns white — the space is still yours, just empty again —
+            the rain eases and the sky brightens.
+          </p>
+
+          <p>
+            Take new pictures and they fill the white clouds up. Buy more storage and you get more
+            clouds to fill. Either way, the sky gets busier.
           </p>
 
           <p className="info__note">

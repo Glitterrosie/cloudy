@@ -23,7 +23,7 @@ export const Sky = forwardRef(function Sky(
     freedPhotos,
     reducedMotion,
     onOpenCloud,
-    onEvaporated,
+    onSettled,
   },
   ref,
 ) {
@@ -43,7 +43,7 @@ export const Sky = forwardRef(function Sky(
           group={cloud.groupId ? groups[cloud.groupId] : null}
           reducedMotion={reducedMotion}
           onOpen={onOpenCloud}
-          onEvaporated={onEvaporated}
+          onSettled={onSettled}
         />
       ))}
 

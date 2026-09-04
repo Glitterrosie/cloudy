@@ -22,8 +22,15 @@ Every cloud is a piece of your storage.
 
 The more you store, the more clouds. The more near-duplicate clouds you carry, the more
 often it rains on your screen. Tap a slate-blue cloud, keep a favourite, delete the rest
-— that cloud empties, lifts away, and the sky brightens. Or press *Get more storage*
-and watch buying your way out simply give you more clouds, and a storm.
+— that cloud turns white and stays, because the space is still yours, just empty again.
+The rain eases and the sky brightens.
+
+Two buttons sit **outside** the phone, standing in for things you do in the real world:
+
+- **Take new pictures** adds a slate-blue cloud of near-duplicates and shrinks the white
+  clouds to pay for it. Space does not come from nowhere.
+- **Get more storage** adds white clouds — capacity you have bought and not yet filled —
+  and a storm. Buying your way out just gives you more sky to fill.
 
 ## Run it
 
@@ -85,6 +92,7 @@ Everything here is designed to survive a week of unattended use.
 | Idle reset delay (60s) | `IDLE_MS` in `src/state/useIdleReset.js` |
 | How often it rains | `GAP_CALM` / `GAP_HEAVY` in `src/state/useRain.js` |
 | Opening sky composition | `OPENING_LAYOUT` in `src/data/initialState.js` |
+| How many clouds a sky holds | `useCloudCap` in `src/state/useEnvironment.js` |
 | The duplicate stacks and their copy | `src/data/photoGroups.js` |
 | Palette | the custom properties at the top of `src/styles.css` |
 | How long the win state holds | `WIN_HOLD_MS` in `src/App.jsx` |
@@ -104,7 +112,7 @@ All state lives in one `useReducer`. A few decisions worth knowing about if you 
 
 - **Clouds drift with CSS keyframes, not JavaScript.** Compositor-driven animation keeps
   moving through main-thread hiccups, costs nothing per frame, and doesn't cook an old
-  tablet over an eight-hour day. One-off choreography — a cloud evaporating, thumbnails
+  tablet over an eight-hour day. One-off choreography — a cloud emptying, thumbnails
   crumpling — uses the Web Animations API.
 - **Clouds oscillate a few pixels rather than crossing the screen,** so one never drifts
   out from under a reaching finger.
@@ -112,6 +120,10 @@ All state lives in one `useReducer`. A few decisions worth knowing about if you 
   animates nothing at all.
 - **Only slate-blue clouds are tappable.** The others ignore pointer events, so a tap on
   overlapping clouds always reaches the one that matters.
+- **Clouds are placed by clearance, not by luck.** `findSpot` in `src/state/skyReducer.js`
+  scores candidate positions by edge-to-edge gap, comparing the two axes in the same
+  units via the panel's aspect ratio, so new clouds land in real gaps. The opening sky is
+  hand-placed on five rows with no overlap at all.
 - **Colour is never the only cue.** Duplicate clouds carry a stack-of-photos mark and a
   count, unique clouds a single photo, free clouds nothing — so the three kinds stay
   tellable apart in greyscale, under glare, or with colour-blindness. The palette is a

@@ -35,56 +35,37 @@ function useCloudShape(seed) {
   }, [seed])
 }
 
-function CloudComponent({ cloud, group, reducedMotion, onOpen, onEvaporated }) {
+function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled }) {
   const shape = useCloudShape(cloud.seed)
   const evapRef = useRef(null)
   const interactive = cloud.type === 'similar' && cloud.phase === 'idle'
 
-  // The clearing beat: a pulse to catch the eye, a hold on white so the visitor
-  // reads "my cloud changed", then it lifts away — because a sky full of white
-  // clouds is still an overcast sky, and free space should read as open sky.
+  // The clearing beat: a pulse to catch the eye while the fill transitions to
+  // white, and a small puff of the data leaving. The cloud itself stays — it is
+  // storage you still own, now empty.
   useEffect(() => {
     if (cloud.phase !== 'freed') return undefined
     const node = evapRef.current
     let cancelled = false
     let timer = null
 
-    const finish = () => {
-      if (!cancelled) onEvaporated(cloud.id)
+    const settle = () => {
+      if (!cancelled) onSettled(cloud.id)
     }
 
-    if (!node || typeof node.animate !== 'function') {
-      timer = setTimeout(finish, 900)
-      return () => {
-        cancelled = true
-        clearTimeout(timer)
-      }
-    }
-
-    const hold = reducedMotion ? 500 : 850
     const run = async () => {
       try {
-        if (!reducedMotion) {
+        if (node && typeof node.animate === 'function' && !reducedMotion) {
           await node.animate(
             [{ transform: 'scale(1)' }, { transform: 'scale(1.07)' }, { transform: 'scale(1)' }],
-            { duration: 320, easing: 'ease-out' },
+            { duration: 360, easing: 'ease-out' },
           ).finished
         }
-        await new Promise((resolve) => {
-          timer = setTimeout(resolve, hold)
-        })
-        if (cancelled) return
-        await node.animate(
-          [
-            { transform: 'translateY(0) scale(1)', opacity: 1 },
-            { transform: 'translateY(-14%) scale(0.35)', opacity: 0 },
-          ],
-          { duration: reducedMotion ? 500 : 900, easing: 'cubic-bezier(.34,.06,.53,.99)', fill: 'forwards' },
-        ).finished
       } catch {
-        // An interrupted animation must never strand a cloud on screen.
+        // An interrupted animation must never strand a cloud mid-transition.
       }
-      finish()
+      if (cancelled) return
+      timer = setTimeout(settle, reducedMotion ? 400 : 900)
     }
     run()
 
@@ -92,7 +73,7 @@ function CloudComponent({ cloud, group, reducedMotion, onOpen, onEvaporated }) {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [cloud.phase, cloud.id, reducedMotion, onEvaporated])
+  }, [cloud.phase, cloud.id, reducedMotion, onSettled])
 
   const style = {
     left: `${cloud.xPct}%`,

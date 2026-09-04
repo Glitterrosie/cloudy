@@ -74,7 +74,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: var(--page);
+  background: var(--page-deep);
   touch-action: manipulation;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -88,6 +88,9 @@ button {
   flex-direction: column;
   min-height: 0;
   background: var(--page);
+  border-radius: 0 0 26px 26px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .device__status {
@@ -102,10 +105,6 @@ button {
   background: var(--page);
   padding: 0 14px;
   padding-top: max(10px, env(safe-area-inset-top));
-}
-
-.tagline {
-  display: none;
 }
 
 /* --- top bar -------------------------------------------------------------- */
@@ -551,26 +550,33 @@ button {
 
 /* --- controls ------------------------------------------------------------- */
 
+/* Outside the phone, on the page: real-world actions, not part of the widget. */
 .controls {
+  flex: none;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 7px;
-  padding: 10px 0 max(12px, env(safe-area-inset-bottom));
+  padding: 10px 12px max(12px, env(safe-area-inset-bottom));
 }
 
-.controls__hint,
+.controls__row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .controls__nudge {
   margin: 0;
   text-align: center;
   font-size: 0.78rem;
   line-height: 1.35;
-  color: var(--ink-soft);
-}
-
-.controls__nudge {
   color: var(--cloud-similar);
   font-weight: 600;
+  max-width: 34ch;
+  animation: nudge-pop 320ms ease-out both;
 }
 
 .btn {
@@ -593,6 +599,12 @@ button {
   background: var(--cloud-unique-deep);
   color: #fff;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+}
+
+.btn--secondary {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.16);
 }
 
 .btn--danger {
@@ -913,6 +925,11 @@ button {
   100% { opacity: 0; transform: translateX(-50%) scale(1.05); }
 }
 
+@keyframes nudge-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @keyframes drip {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(2px); }
@@ -951,7 +968,7 @@ button {
   .device {
     flex: none;
     width: min(430px, 94%);
-    height: min(calc(100dvh - 100px), 880px);
+    height: min(calc(100dvh - 190px), 880px);
     border: 11px solid var(--bezel);
     border-radius: var(--radius-card);
     box-shadow: 0 26px 60px rgba(0, 0, 0, 0.3);
@@ -992,15 +1009,6 @@ button {
   .modal__grid {
     grid-template-columns: repeat(4, 1fr);
   }
-
-  .tagline {
-    display: block;
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 0.9rem;
-    color: var(--ink-soft);
-    text-align: center;
-  }
 }
 
 /* Tall portrait screens — the exhibition tablets — get a bigger phone, so the sky
@@ -1008,7 +1016,7 @@ button {
 @media (min-width: 700px) and (min-height: 950px) {
   .device {
     width: min(520px, 92%);
-    height: min(calc(100dvh - 80px), 1060px);
+    height: min(calc(100dvh - 200px), 1060px);
     border-width: 13px;
   }
 
@@ -1016,9 +1024,7 @@ button {
     font-size: 2.3rem;
   }
 
-  .storage__line,
-  .controls__hint,
-  .controls__nudge {
+  .storage__line {
     font-size: 0.9rem;
   }
 

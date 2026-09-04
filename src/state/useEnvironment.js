@@ -50,7 +50,15 @@ export function useWakeLock(visible) {
   }, [visible])
 }
 
-/** How many clouds this sky can hold before it stops being readable. */
+/**
+ * How many clouds this sky can hold before it stops being readable.
+ *
+ * Generous on purpose. The opening sky is already 10 clouds, and a visitor needs
+ * to be able to press "get more storage" enough times to watch the sky fill up —
+ * that accumulation is the argument the piece is making. Clouds shrink as the
+ * count rises (see Sky.jsx), so a full sky stays legible rather than becoming
+ * a solid mass.
+ */
 export function useCloudCap(ref, onChange) {
   useEffect(() => {
     const el = ref.current
@@ -58,7 +66,12 @@ export function useCloudCap(ref, onChange) {
     const measure = () => {
       const { width, height } = el.getBoundingClientRect()
       if (!width || !height) return
-      onChange(clamp(Math.round(Math.sqrt(width * height) / 28), 12, 22))
+      onChange({
+        cap: clamp(Math.round(Math.sqrt(width * height) / 17), 18, 34),
+        // Cloud x/size are percentages of panel width and y is a percentage of
+        // panel height, so spacing maths needs this to compare the two axes.
+        aspect: height / width,
+      })
     }
     measure()
     if (typeof ResizeObserver === 'undefined') {
