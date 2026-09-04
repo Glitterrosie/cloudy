@@ -1,0 +1,1067 @@
+/* ==========================================================================
+   Cloudy — your cloud storage, as weather.
+   Palette follows the concept poster: warm butter yellow is the page and the
+   chrome around the phone; the sky inside the screen is pale blue.
+   ========================================================================== */
+
+:root {
+  --page: #f9e7a1;
+  --page-deep: #f3dc8a;
+  --ink: #1c1c1c;
+  --ink-soft: #5b5648;
+  --paper: #fffdf6;
+
+  --cloud-free: #ffffff;
+  /* The poster's medium blue, lifted in lightness. At #3a7bc8 it sat within a
+     hair of the slate in greyscale — indistinguishable under glare, on a cheap
+     tablet panel, or with colour-blindness. This keeps a clear three-step
+     lightness ramp: slate, blue, sky, white. */
+  --cloud-unique: #62a0dc;
+  --cloud-unique-deep: #3a7bc8;
+  --cloud-similar: #4a6785;
+  --action: #e2685f;
+
+  --bezel: #24242a;
+  --radius-card: 40px;
+
+  /* A friendly marker face where the device has one; a clean system stack when
+     it doesn't. Nothing is fetched — hall wifi is not to be trusted. */
+  --font-display: 'Marker Felt', 'Chalkboard SE', 'Comic Sans MS', 'Segoe Print', system-ui,
+    sans-serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-body);
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- shell ---------------------------------------------------------------- */
+
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--page);
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.device {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--page);
+}
+
+.device__status {
+  display: none;
+}
+
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--page);
+  padding: 0 14px;
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+
+.tagline {
+  display: none;
+}
+
+/* --- top bar -------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px 8px;
+}
+
+.wordmark {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 7vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.gauge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.gauge__drop {
+  width: 15px;
+  height: 15px;
+  fill: var(--cloud-similar);
+  transition: transform 400ms ease;
+}
+
+.gauge.is-raining .gauge__drop {
+  animation: drip 1.4s ease-in-out infinite;
+}
+
+.gauge__bars {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.gauge__bar {
+  width: 4px;
+  height: 7px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.16);
+  transition: background 600ms ease, height 400ms ease;
+}
+
+.gauge__bar:nth-child(2) { height: 10px; }
+.gauge__bar:nth-child(3) { height: 13px; }
+.gauge__bar:nth-child(4) { height: 16px; }
+
+.gauge__bar.is-on {
+  background: var(--cloud-similar);
+}
+
+/* --- storage bar ---------------------------------------------------------- */
+
+.storage {
+  padding: 0 2px 8px;
+}
+
+.storage__line {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.storage__line strong {
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
+.storage__warn {
+  color: var(--cloud-similar);
+  font-weight: 600;
+}
+
+.storage__freed {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(58, 123, 200, 0.14);
+  color: var(--cloud-unique-deep);
+  font-weight: 600;
+  font-size: 0.74rem;
+}
+
+.storage__bar {
+  display: flex;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--cloud-free);
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.storage__seg {
+  transition: width 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.storage__seg--similar { background: var(--cloud-similar); }
+.storage__seg--unique { background: var(--cloud-unique); }
+
+/* --- legend --------------------------------------------------------------- */
+
+.legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-bottom: 8px;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+}
+
+.legend__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px 3px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+}
+
+.legend__chip--flag {
+  font-weight: 700;
+  color: var(--cloud-similar);
+}
+
+.mini {
+  width: 22px;
+  height: 15px;
+  flex: none;
+}
+
+/* A pure white cloud disappears on the cream panels. In the sky it sits on blue
+   and needs no help; in a legend it does. */
+.mini.cloud--free .cloud__body {
+  fill: #e6edf4;
+}
+
+.legend__info {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Small phones — an iPhone SE is 360px wide and the legend is the tightest row
+   on the screen. Shrink it rather than let anything scroll sideways. */
+@media (max-width: 400px) {
+  .legend {
+    font-size: 0.63rem;
+    gap: 3px;
+  }
+
+  .legend__chip {
+    padding: 2px 5px 2px 3px;
+    gap: 2px;
+  }
+
+  .mini {
+    width: 18px;
+    height: 12px;
+  }
+
+  .legend__info {
+    width: 23px;
+    height: 23px;
+    font-size: 0.85rem;
+  }
+
+  .screen {
+    padding: 0 10px;
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+}
+
+/* --- sky ------------------------------------------------------------------ */
+
+.sky {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+  border-radius: 22px;
+  overflow: hidden;
+  transition: background-color 1400ms ease;
+  contain: layout paint;
+}
+
+.sky__glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 10%, rgba(255, 251, 236, 0.62), transparent 60%);
+  transition: opacity 1400ms ease;
+  pointer-events: none;
+}
+
+.sky__win {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  z-index: 4;
+  transform: translateX(-50%);
+  width: 84%;
+  text-align: center;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(255, 253, 246, 0.92);
+  animation: rise-in 700ms ease-out both;
+}
+
+.sky__win-line {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.sky__win-sub {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+/* --- clouds --------------------------------------------------------------- */
+
+.cloud {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Scoped to .cloud so the legend's mini clouds, which reuse the type modifier
+   purely for its fill, don't inherit interaction semantics. */
+.cloud.cloud--similar {
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.cloud.is-clearing {
+  pointer-events: none;
+}
+
+.cloud__drift {
+  animation: drift var(--dur) ease-in-out var(--drift-delay) infinite alternate;
+}
+
+.cloud__bob {
+  animation: bob var(--bob-dur) ease-in-out var(--bob-delay) infinite alternate;
+}
+
+.cloud__evap {
+  position: relative;
+}
+
+.cloud__hit {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cloud--similar .cloud__hit {
+  cursor: pointer;
+  /* Motion as affordance: only the clouds worth tapping breathe. */
+  animation: breathe 4.6s ease-in-out infinite;
+}
+
+.cloud__hit:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 4px;
+  border-radius: 20px;
+}
+
+.cloud__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cloud__body {
+  transition: fill 420ms ease;
+}
+
+.cloud--free .cloud__body { fill: var(--cloud-free); }
+.cloud--unique .cloud__body { fill: var(--cloud-unique); }
+.cloud--similar .cloud__body { fill: var(--cloud-similar); }
+
+/* Shape as well as colour, so the three kinds survive greyscale and glare. */
+.cloud__motif rect {
+  fill: rgba(255, 255, 255, 0.4);
+  transition: opacity 320ms ease;
+}
+
+.cloud__motif rect.cloud__motif-top {
+  fill: rgba(255, 255, 255, 0.72);
+}
+
+.cloud__count {
+  fill: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.cloud.is-clearing .cloud__motif {
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+.cloud__puffs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.puff {
+  --dx: calc((var(--i) - 1.5) * 22px);
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 11%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  animation: puff 900ms ease-out calc(320ms + var(--i) * 90ms) forwards;
+}
+
+/* --- rain ----------------------------------------------------------------- */
+
+.rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  /* Above every cloud, including the interactive ones, so rain falls in front
+     of the whole sky rather than behind half of it. */
+  z-index: 3;
+  transition: opacity 1.2s ease;
+}
+
+.rain.is-on {
+  opacity: 1;
+}
+
+/* Paused rather than unmounted: a shower costs nothing when it isn't falling. */
+.rain:not(.is-on) .drop {
+  animation-play-state: paused;
+}
+
+.drop {
+  position: absolute;
+  top: -14%;
+  width: 2px;
+  height: var(--len);
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.92));
+  opacity: 0;
+  animation: fall var(--fall) linear var(--delay) infinite;
+}
+
+.drop.is-active {
+  opacity: var(--o);
+}
+
+/* --- sun and storm -------------------------------------------------------- */
+
+.sunburst {
+  position: absolute;
+  top: 5%;
+  left: 50%;
+  width: 46%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 1600ms ease;
+  pointer-events: none;
+}
+
+.sunburst.is-on {
+  opacity: 1;
+}
+
+.sunburst__rays {
+  position: absolute;
+  inset: 0;
+  fill: rgba(255, 214, 102, 0.5);
+  animation: spin 70s linear infinite;
+}
+
+.sunburst:not(.is-on) .sunburst__rays {
+  animation-play-state: paused;
+}
+
+.sunburst__disc {
+  position: absolute;
+  inset: 27%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 36%, #fff3c4, #ffc94a 70%);
+}
+
+.storm {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.9), transparent 58%);
+  animation: flash 900ms ease-out forwards;
+}
+
+.storm__bolt {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  width: 13%;
+  transform: translateX(-50%);
+  fill: #ffd84a;
+  animation: bolt 900ms ease-out forwards;
+}
+
+/* --- controls ------------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 0 max(12px, env(safe-area-inset-bottom));
+}
+
+.controls__hint,
+.controls__nudge {
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.controls__nudge {
+  color: var(--cloud-similar);
+  font-weight: 600;
+}
+
+.btn {
+  font-family: var(--font-display);
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7rem 1.3rem;
+  font-size: 1rem;
+  line-height: 1.1;
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform 120ms ease, filter 200ms ease;
+}
+
+.btn:active {
+  transform: translateY(2px);
+}
+
+.btn--primary {
+  background: var(--cloud-unique-deep);
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+}
+
+.btn--danger {
+  background: var(--action);
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+  padding: 0.65rem 1.4rem;
+}
+
+.btn--quiet {
+  background: none;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  box-shadow: none;
+  font-size: 0.9rem;
+}
+
+.btn--ghost {
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--ink);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  min-height: 36px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn__note {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  opacity: 0.9;
+  margin-top: 1px;
+}
+
+/* --- modals --------------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.modal__scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(28, 28, 28, 0.42);
+  animation: fade-in 260ms ease both;
+  cursor: pointer;
+}
+
+.modal.is-leaving .modal__scrim {
+  animation: fade-out 700ms ease 400ms both;
+}
+
+.modal__dialog {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--paper);
+  border-radius: 26px;
+  padding: 18px 16px 16px;
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.28);
+  animation: pop-in 320ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.modal__head {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.modal__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 5vw, 1.5rem);
+  line-height: 1.15;
+}
+
+.modal__sub {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.modal__meta {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+.modal__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.modal__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+/* --- photo thumbnails ----------------------------------------------------- */
+
+.thumb {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 13px;
+  overflow: hidden;
+  background: none;
+  cursor: pointer;
+  opacity: 0.68;
+  transform: rotate(var(--tilt, 0deg));
+  transition: opacity 260ms ease, transform 260ms ease, border-color 260ms ease;
+}
+
+.thumb.is-kept {
+  opacity: 1;
+  border-color: var(--action);
+  transform: scale(1.04) rotate(var(--tilt, 0deg));
+}
+
+.thumb__img {
+  position: absolute;
+  inset: 0;
+  background-size: 165% 165%;
+  /* Enough desaturation to read as "going away", not so much that you can no
+     longer see it is the same photograph as the one you kept. */
+  filter: hue-rotate(var(--hue)) grayscale(0.55) contrast(0.94);
+  transition: filter 260ms ease;
+}
+
+.thumb.is-kept .thumb__img {
+  filter: hue-rotate(var(--hue));
+}
+
+.thumb__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.thumb.is-kept .thumb__badge {
+  background: var(--action);
+  color: #fff;
+}
+
+.thumb__name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 2px 3px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 8px;
+  letter-spacing: 0.2px;
+}
+
+.thumb--more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  opacity: 1;
+  border: 2px dashed rgba(79, 110, 140, 0.5);
+  background: rgba(79, 110, 140, 0.1);
+  color: var(--cloud-similar);
+  text-align: center;
+  cursor: default;
+  transform: none;
+}
+
+.thumb__more-count {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.thumb__more-label {
+  font-size: 0.55rem;
+  line-height: 1.15;
+  padding: 0 4px;
+}
+
+/* --- info panel ----------------------------------------------------------- */
+
+.info {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.info p {
+  margin: 0 0 10px;
+}
+
+.info__list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.info__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.info__list .mini {
+  width: 34px;
+  height: 23px;
+  margin-top: 2px;
+}
+
+.info__note {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+/* --- crash screen --------------------------------------------------------- */
+
+.crash {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  background: var(--page);
+  font-family: var(--font-body);
+}
+
+.crash h1 {
+  font-family: var(--font-display);
+  margin: 0;
+}
+
+.crash__cloud {
+  font-size: 3rem;
+  margin: 0;
+}
+
+/* --- keyframes ------------------------------------------------------------ */
+
+@keyframes drift {
+  from { transform: translateX(calc(var(--amp) * -1px)); }
+  to { transform: translateX(calc(var(--amp) * 1px)); }
+}
+
+@keyframes bob {
+  from { transform: translateY(-4px) rotate(calc(var(--rot) * -1deg)); }
+  to { transform: translateY(5px) rotate(calc(var(--rot) * 1deg)); }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+
+@keyframes fall {
+  from { transform: translate3d(0, -20%, 0); }
+  to { transform: translate3d(var(--drift), 100vh, 0); }
+}
+
+@keyframes puff {
+  0% { opacity: 0.75; transform: translate(-50%, -50%) scale(0.4); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -150%) scale(1.15); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes flash {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes bolt {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.8); }
+  20% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.05); }
+}
+
+@keyframes drip {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.9) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* --- tablet and desktop: the sky sits inside a phone ---------------------- */
+
+@media (min-width: 600px) and (min-height: 620px) {
+  .app {
+    justify-content: center;
+    gap: 14px;
+    padding: 20px;
+    background: var(--page-deep);
+  }
+
+  .device {
+    flex: none;
+    width: min(430px, 94%);
+    height: min(calc(100dvh - 100px), 880px);
+    border: 11px solid var(--bezel);
+    border-radius: var(--radius-card);
+    box-shadow: 0 26px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  }
+
+  .device__status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 20px 3px;
+    background: var(--page);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .device__status-icons {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .device__status-icons i {
+    display: block;
+    background: var(--ink);
+    border-radius: 1px;
+  }
+
+  .device__status-icons .bar { width: 3px; height: 7px; }
+  .device__status-icons .wifi { width: 9px; height: 8px; border-radius: 50% 50% 0 0; }
+  .device__status-icons .battery { width: 15px; height: 8px; border-radius: 2px; }
+
+  .screen {
+    padding-top: 4px;
+  }
+
+  .modal__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .tagline {
+    display: block;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+}
+
+/* Tall portrait screens — the exhibition tablets — get a bigger phone, so the sky
+   is not a postage stamp in the middle of an otherwise empty display. */
+@media (min-width: 700px) and (min-height: 950px) {
+  .device {
+    width: min(520px, 92%);
+    height: min(calc(100dvh - 80px), 1060px);
+    border-width: 13px;
+  }
+
+  .wordmark {
+    font-size: 2.3rem;
+  }
+
+  .storage__line,
+  .controls__hint,
+  .controls__nudge {
+    font-size: 0.9rem;
+  }
+
+  .legend {
+    font-size: 0.78rem;
+  }
+
+  .btn--primary {
+    font-size: 1.15rem;
+    padding: 0.85rem 1.6rem;
+  }
+}
+
+/* --- reduced motion: calm it down, don't switch it off -------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud__drift {
+    animation-duration: calc(var(--dur) * 4);
+  }
+
+  .cloud__bob,
+  .cloud--similar .cloud__hit,
+  .sunburst__rays {
+    animation: none;
+  }
+
+  /* Rain becomes a still pattern that fades in and out rather than falling. */
+  .drop {
+    animation: none;
+    top: calc(var(--o) * 110%);
+  }
+
+  .storm,
+  .storm__bolt {
+    animation-duration: 1400ms;
+  }
+
+  .modal__dialog,
+  .sky__win {
+    animation: none;
+  }
+
+  .puff {
+    animation-duration: 600ms;
+  }
+}
