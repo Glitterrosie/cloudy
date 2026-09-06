@@ -3,23 +3,22 @@ import { mulberry32 } from '../lib/rng.js'
 import { MAX_DROPS } from '../state/useRain.js'
 
 /**
- * A fixed pool of drops, built once and never rebuilt.
+ * A downpour, drawn like a comic: fat teardrops, and water that visibly fills up
+ * the bottom of the sky before draining away again.
  *
- * Mounting and unmounting drops per shower would be roughly 300,000 node
- * create/destroy cycles across an exhibition day. Instead a shower is a class
- * toggle: the overlay fades in, paused animations resume, and intensity decides
- * how many drops are visible. Zero allocation, zero JavaScript per frame.
+ * The drops are a fixed pool built once and never rebuilt — a shower is a class
+ * toggle, which resumes paused animations rather than mounting hundreds of nodes
+ * every few seconds across an exhibition day.
  */
-export function RainOverlay({ raining, drops }) {
+export function RainOverlay({ raining, drops, level }) {
   const pool = useMemo(() => {
     const rand = mulberry32(4242)
     return Array.from({ length: MAX_DROPS }, () => ({
       x: rand() * 100,
-      duration: 0.85 + rand() * 0.75,
-      delay: -rand() * 2,
-      length: 9 + rand() * 15,
-      opacity: 0.3 + rand() * 0.4,
-      drift: rand() * 6 - 3,
+      duration: 0.5 + rand() * 0.35,
+      delay: -rand() * 1.2,
+      scale: 0.75 + rand() * 0.75,
+      tilt: rand() * 10 - 5,
     }))
   }, [])
 
@@ -33,12 +32,19 @@ export function RainOverlay({ raining, drops }) {
             left: `${drop.x}%`,
             '--fall': `${drop.duration}s`,
             '--delay': `${drop.delay}s`,
-            '--len': `${drop.length}px`,
-            '--o': drop.opacity,
-            '--drift': `${drop.drift}px`,
+            '--scale': drop.scale,
+            '--tilt': `${drop.tilt}deg`,
           }}
         />
       ))}
+
+      {/* The water that gathers, then goes. */}
+      <div className="flood" style={{ height: `${Math.round(level * 100)}%` }}>
+        <svg className="flood__wave" viewBox="0 0 240 24" preserveAspectRatio="none">
+          <path d="M0 12 Q 15 1 30 12 T 60 12 T 90 12 T 120 12 T 150 12 T 180 12 T 210 12 T 240 12 V24 H0 Z" />
+        </svg>
+        <span className="flood__body" />
+      </div>
     </div>
   )
 }

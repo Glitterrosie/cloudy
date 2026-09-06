@@ -499,16 +499,56 @@ button {
 .drop {
   position: absolute;
   top: -14%;
-  width: 2px;
-  height: var(--len);
-  border-radius: 2px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.92));
+  width: 17px;
+  height: 17px;
+  background: #ffffff;
+  /* The classic cartoon teardrop: a circle with one corner left sharp. */
+  border-radius: 0 50% 50% 50%;
   opacity: 0;
+  box-shadow: inset -3px -3px 0 rgba(110, 170, 220, 0.6);
   animation: fall var(--fall) linear var(--delay) infinite;
 }
 
 .drop.is-active {
-  opacity: var(--o);
+  opacity: 0.95;
+}
+
+/* Water gathering at the bottom of the sky, then draining away. */
+.flood {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  pointer-events: none;
+  transition: height 1700ms cubic-bezier(0.3, 0.8, 0.4, 1);
+}
+
+.rain:not(.is-on) .flood {
+  transition: height 1300ms cubic-bezier(0.5, 0, 0.7, 0.2);
+}
+
+.flood__body {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #6bb2ea 0%, #3f8fd4 55%, #2f7bbd 100%);
+  opacity: 0.88;
+}
+
+.flood__wave {
+  position: absolute;
+  left: -20%;
+  width: 140%;
+  height: 22px;
+  bottom: 100%;
+  margin-bottom: -1px;
+  fill: #6bb2ea;
+  opacity: 0.88;
+  animation: slosh 3.4s ease-in-out infinite alternate;
+}
+
+.rain:not(.is-on) .flood__wave {
+  animation-play-state: paused;
 }
 
 /* --- sun and storm -------------------------------------------------------- */
@@ -939,13 +979,18 @@ button {
 }
 
 @keyframes fall {
-  from { transform: translate3d(0, -20%, 0); }
-  to { transform: translate3d(var(--drift), 100vh, 0); }
+  from { transform: translate3d(0, -20%, 0) rotate(calc(-45deg + var(--tilt))) scale(var(--scale)); }
+  to { transform: translate3d(0, 80vh, 0) rotate(calc(-45deg + var(--tilt))) scale(var(--scale)); }
 }
 
 @keyframes puff {
   0% { opacity: 0.75; transform: translate(-50%, -50%) scale(0.4); }
   100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -150%) scale(1.15); }
+}
+
+@keyframes slosh {
+  from { transform: translateX(-6%); }
+  to { transform: translateX(4%); }
 }
 
 @keyframes spin {
@@ -1100,10 +1145,19 @@ button {
     animation-duration: 260ms;
   }
 
-  /* Rain becomes a still pattern that fades in and out rather than falling. */
+  /* Drops hold still and the water rises gently rather than pouring. */
   .drop {
     animation: none;
-    top: calc(var(--o) * 110%);
+    top: calc(var(--scale) * 40%);
+  }
+
+  .flood,
+  .rain:not(.is-on) .flood {
+    transition-duration: 900ms;
+  }
+
+  .flood__wave {
+    animation: none;
   }
 
   .storm,

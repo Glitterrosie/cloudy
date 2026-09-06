@@ -5,6 +5,7 @@ import {
 } from '../data/initialState.js'
 import { analyseLibrary } from '../data/library.js'
 import { mulberry32, between, clamp } from '../lib/rng.js'
+import { RAIN_THRESHOLD } from './useRain.js'
 
 export const FULL_SKY_NUDGE = 'Your sky is full. Clean out a slate-blue cloud to make room.'
 export const OUT_OF_SPACE_NUDGE =
@@ -75,48 +76,129 @@ function spawnClouds(state) {
 }
 
 /**
+ * Spread a change in capacity across the white clouds, in proportion to how much
+ * each holds. Negative takes space away (photos consuming it), positive hands it
+ * back. A cloud emptied below what is readable is marked to leave.
+ */
+function adjustFree(clouds, delta, floor, excludeId) {
+  const free = clouds.filter(
+    (c) => c.type === 'free' && c.phase !== 'leaving' && c.id !== excludeId,
+  )
+  if (!free.length || delta === 0) return clouds
+  const total = free.reduce((sum, c) => sum + c.capacity, 0)
+
+  return clouds.map((cloud) => {
+    if (cloud.type !== 'free' || cloud.phase === 'leaving' || cloud.id === excludeId) return cloud
+    const portion = total > 0 ? cloud.capacity / total : 1 / free.length
+    const capacity = Math.max(0, cloud.capacity + delta * portion)
+    return capacity < floor ? { ...cloud, capacity, phase: 'leaving' } : { ...cloud, capacity }
+  })
+}
+
+/**
  * Taking new photos fills the space you already have.
  *
- * The next stack the detector found becomes a slate-blue cloud, and that much
- * capacity is taken out of the white clouds — space does not come from nowhere.
- * A white cloud emptied below what is readable is marked to leave.
+ * The only thing that can stop you is running out of room — not how many clouds
+ * are in the sky. Where the photos go depends on what is up there: a white cloud
+ * big enough to hold them is filled in and changes colour, because that is
+ * literally what happens to free space. Otherwise a new cloud appears and the
+ * white ones shrink to pay for it.
+ *
+ * Once every duplicate stack in the library is already in the sky, further
+ * photos are ordinary one-offs, and they make the blue clouds bigger.
  */
 function addPhotos(state) {
-  const { stacks } = analyseLibrary()
-  const next = stacks.find((s) => !state.usedStackIds.includes(s.id))
-  if (!next) return withNudge(state, NOTHING_NEW_NUDGE)
-
+  const library = analyseLibrary()
   const stats = selectStats(state)
-  if (stats.freeBytes < next.bytes) return withNudge(state, OUT_OF_SPACE_NUDGE)
-  if (state.clouds.length >= state.cloudCap) return withNudge(state, FULL_SKY_NUDGE)
+  const next = library.stacks.find((s) => !state.usedStackIds.includes(s.id))
+
+  const perSingle = library.singleBytes / Math.max(1, library.singleCount)
+  const incomingBytes = next ? next.bytes : Math.round(perSingle * 24)
+
+  if (stats.freeBytes < incomingBytes) return withNudge(state, OUT_OF_SPACE_NUDGE)
 
   const rand = mulberry32(state.spawnSeed)
   const floor = state.quotaBytes * MIN_CAPACITY_SHARE
+  const whites = state.clouds
+    .filter((c) => c.type === 'free' && c.phase !== 'leaving')
+    .sort((a, b) => b.capacity - a.capacity)
+  const host = whites[0]
 
-  // Take the new photos' space out of the free clouds, each giving up the same
-  // proportion. Scaling against a running remainder instead would not add up to
-  // the space actually needed, and the sky would slowly stop matching the quota.
-  const takeShare = clamp(next.bytes / Math.max(1, stats.freeBytes), 0, 1)
-  const clouds = state.clouds.map((cloud) => {
-    if (cloud.type !== 'free') return cloud
-    const capacity = cloud.capacity * (1 - takeShare)
-    return capacity < floor ? { ...cloud, capacity, phase: 'leaving' } : { ...cloud, capacity }
-  })
+  let clouds = state.clouds
 
-  const spot = seedSpot(rand, clouds)
-  clouds.push({
-    id: `c-sim-${next.id}`,
-    type: 'similar',
-    groupId: next.id,
-    xPct: spot.x,
-    yPct: spot.y,
-    capacity: next.bytes,
-    bytes: next.bytes,
-    size: 12,
-    seed: Math.floor(rand() * 1e6),
-    phase: 'idle',
-    entering: true,
-  })
+  if (!next) {
+    // No new kinds of duplicate left — these are just more photos. Grow the
+    // smallest blue cloud, or turn a white one blue if there is none.
+    const target = state.clouds
+      .filter((c) => c.type === 'unique' && c.phase !== 'leaving')
+      .sort((a, b) => a.capacity - b.capacity)[0]
+
+    if (target) {
+      clouds = adjustFree(clouds, -incomingBytes, floor)
+      clouds = clouds.map((c) =>
+        c.id === target.id
+          ? { ...c, capacity: c.capacity + incomingBytes, bytes: c.bytes + incomingBytes }
+          : c,
+      )
+    } else if (host) {
+      clouds = clouds.map((c) =>
+        c.id === host.id
+          ? { ...c, type: 'unique', capacity: incomingBytes, bytes: incomingBytes }
+          : c,
+      )
+      clouds = adjustFree(clouds, host.capacity - incomingBytes, floor, host.id)
+    } else {
+      return withNudge(state, OUT_OF_SPACE_NUDGE)
+    }
+
+    return {
+      ...state,
+      clouds,
+      spawnSeed: (state.spawnSeed * 1664525 + 1013904223) >>> 0,
+      nudge: null,
+      dirty: true,
+    }
+  }
+
+  // A white cloud that can hold the whole stack simply fills up and turns slate.
+  const fillsAWhiteCloud = host && (host.capacity >= incomingBytes || clouds.length >= state.cloudCap)
+
+  if (fillsAWhiteCloud) {
+    clouds = clouds.map((c) =>
+      c.id === host.id
+        ? {
+            ...c,
+            type: 'similar',
+            groupId: next.id,
+            capacity: incomingBytes,
+            bytes: incomingBytes,
+            filling: (c.filling ?? 0) + 1,
+          }
+        : c,
+    )
+    // Whatever the white cloud had spare goes back to the others; if it was too
+    // small, the shortfall comes out of them instead.
+    clouds = adjustFree(clouds, host.capacity - incomingBytes, floor, host.id)
+  } else {
+    clouds = adjustFree(clouds, -incomingBytes, floor)
+    const spot = seedSpot(rand, clouds)
+    clouds = [
+      ...clouds,
+      {
+        id: `c-sim-${next.id}`,
+        type: 'similar',
+        groupId: next.id,
+        xPct: spot.x,
+        yPct: spot.y,
+        capacity: incomingBytes,
+        bytes: incomingBytes,
+        size: 12,
+        seed: Math.floor(rand() * 1e6),
+        phase: 'idle',
+        entering: true,
+      },
+    ]
+  }
 
   return {
     ...state,
@@ -245,10 +327,10 @@ export function selectStats(state) {
   const usedBytes = similarBytes + uniqueBytes
   const freeBytes = Math.max(0, state.quotaBytes - usedBytes)
 
-  // "The more clouds with similar data you have, the higher the probability of
-  // being rained on" — so this counts duplicate clouds rather than taking their
-  // share of the sky. Buying empty storage must not quietly stop the rain.
-  const intensity = clamp(similar.length / 6, 0, 1)
+  // Pressure building toward a downpour: it counts duplicate clouds, so buying
+  // empty storage cannot quietly stop the rain, and it reads full a few clouds
+  // past the threshold where rain actually starts.
+  const intensity = clamp(similar.length / (RAIN_THRESHOLD + 3), 0, 1)
 
   return {
     similarCount: similar.length,

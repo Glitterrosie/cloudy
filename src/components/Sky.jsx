@@ -1,7 +1,7 @@
 import { forwardRef, useMemo } from 'react'
 import { Cloud } from './Cloud.jsx'
 import { RainOverlay } from './RainOverlay.jsx'
-import { SunBurst, StormFlash } from './SunBurst.jsx'
+import { SunBurst } from './SunBurst.jsx'
 import { mixHex } from '../lib/color.js'
 import { layoutSky } from '../lib/packing.js'
 import { formatSize, formatCount } from '../lib/format.js'
@@ -19,8 +19,8 @@ export const Sky = forwardRef(function Sky(
     clearness,
     raining,
     drops,
+    level,
     cleared,
-    stormToken,
     freedBytes,
     freedPhotos,
     reducedMotion,
@@ -60,8 +60,7 @@ export const Sky = forwardRef(function Sky(
         />
       ))}
 
-      <RainOverlay raining={raining} drops={drops} />
-      <StormFlash token={stormToken} />
+      <RainOverlay raining={raining} drops={drops} level={level} />
 
       {cleared && (
         <div className="sky__win" role="status">

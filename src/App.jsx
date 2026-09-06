@@ -25,7 +25,6 @@ export default function App() {
   const [openGroupId, setOpenGroupId] = useState(null)
   const [originRect, setOriginRect] = useState(null)
   const [showInfo, setShowInfo] = useState(false)
-  const [stormToken, setStormToken] = useState(0)
   const skyRef = useRef(null)
 
   const visible = usePageVisible()
@@ -33,7 +32,7 @@ export default function App() {
   useWakeLock(visible)
 
   const stats = useMemo(() => selectStats(state), [state])
-  const { raining, drops } = useRain(stats.intensity, { enabled: visible })
+  const { raining, drops, level } = useRain(stats.similarCount, { enabled: visible })
 
   const setSky = useCallback(({ cap, aspect }) => dispatch({ type: 'SET_SKY', cap, aspect }), [])
   useCloudCap(skyRef, setSky)
@@ -42,7 +41,6 @@ export default function App() {
     setOpenGroupId(null)
     setShowInfo(false)
     setOriginRect(null)
-    setStormToken(0)
     dispatch({ type: 'RESET' })
   }, [])
 
@@ -81,10 +79,7 @@ export default function App() {
   const settleCloud = useCallback((id) => dispatch({ type: 'SETTLE_CLOUD', id }), [])
   const removeCloud = useCallback((id) => dispatch({ type: 'REMOVE_CLOUD', id }), [])
 
-  const buyStorage = useCallback(() => {
-    if (!stats.atCap) setStormToken((t) => t + 1)
-    dispatch({ type: 'BUY_STORAGE' })
-  }, [stats.atCap])
+  const buyStorage = useCallback(() => dispatch({ type: 'BUY_STORAGE' }), [])
 
   const addPhotos = useCallback(() => dispatch({ type: 'ADD_PHOTOS' }), [])
 
@@ -145,8 +140,8 @@ export default function App() {
             clearness={clearness}
             raining={raining}
             drops={drops}
+            level={level}
             cleared={stats.cleared}
-            stormToken={stormToken}
             freedBytes={state.freedBytes}
             freedPhotos={state.freedPhotos}
             reducedMotion={reducedMotion}
