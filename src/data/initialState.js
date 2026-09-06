@@ -5,40 +5,36 @@ import { analyseLibrary, uniqueChunks } from './library.js'
 // honest rather than inventing a round number.
 export const QUOTA_START_BYTES = 150e6
 export const QUOTA_STEP_BYTES = 50e6
-export const DEFAULT_CLOUD_CAP = 20
+export const DEFAULT_CLOUD_CAP = 22
 
-// Cloud width as a share of the sky panel's width. Scaled against a reference
-// stack size so the range still works whatever the detector happens to find.
-const MIN_SIZE = 18
-const MAX_SIZE = 38
+// Below this share of the quota a cloud is too small to read, and its space is
+// folded back into its neighbours.
+export const MIN_CAPACITY_SHARE = 0.012
 
-export function sizeForBytes(bytes, reference = 30e6) {
-  const scale = Math.min(1, bytes / reference)
-  return MIN_SIZE + (MAX_SIZE - MIN_SIZE) * Math.sqrt(scale)
-}
-
-export const MIN_FREE_SIZE = 13
 export const DEFAULT_SKY_ASPECT = 1.7
 
 // How many detected stacks the opening sky shows. The rest are photographs you
 // have not taken yet, and arrive via "Take new pictures".
 export const OPENING_STACKS = 4
 const OPENING_UNIQUE = 3
+const OPENING_FREE = 3
 
-// Laid out on five rows so no two clouds overlap: neighbours on a row are far
-// enough apart horizontally, and rows are far enough apart vertically once the
-// panel's aspect ratio is taken into account.
-const OPENING_LAYOUT = [
-  { key: 'free-a', type: 'free', x: 22, y: 10, size: 26, seed: 101 },
-  { key: 'uni-a', type: 'unique', x: 68, y: 10, unique: 0, seed: 202 },
-  { key: 'stack-0', type: 'similar', x: 38, y: 27, stack: 0, seed: 303 },
-  { key: 'free-c', type: 'free', x: 84, y: 27, size: 21, seed: 111 },
-  { key: 'uni-b', type: 'unique', x: 20, y: 44, unique: 1, seed: 404 },
-  { key: 'stack-1', type: 'similar', x: 66, y: 44, stack: 1, seed: 707 },
-  { key: 'stack-2', type: 'similar', x: 40, y: 61, stack: 2, seed: 505 },
-  { key: 'free-b', type: 'free', x: 82, y: 61, size: 24, seed: 606 },
-  { key: 'uni-c', type: 'unique', x: 22, y: 82, unique: 2, seed: 808 },
-  { key: 'stack-3', type: 'similar', x: 68, y: 82, stack: 3, seed: 909 },
+/**
+ * Seed positions for the opening sky. Sizes are not set here — every cloud is
+ * sized from its share of the quota and then packed (see lib/packing.js), so
+ * these only decide roughly where each one starts before settling.
+ */
+const SEEDS = [
+  { key: 'free-a', type: 'free', x: 24, y: 12, free: 0 },
+  { key: 'uni-a', type: 'unique', x: 70, y: 11, unique: 0 },
+  { key: 'stack-0', type: 'similar', x: 33, y: 31, stack: 0 },
+  { key: 'free-c', type: 'free', x: 80, y: 30, free: 1 },
+  { key: 'uni-b', type: 'unique', x: 22, y: 51, unique: 1 },
+  { key: 'stack-1', type: 'similar', x: 68, y: 50, stack: 1 },
+  { key: 'stack-2', type: 'similar', x: 34, y: 70, stack: 2 },
+  { key: 'free-b', type: 'free', x: 78, y: 69, free: 2 },
+  { key: 'uni-c', type: 'unique', x: 24, y: 88, unique: 2 },
+  { key: 'stack-3', type: 'similar', x: 70, y: 88, stack: 3 },
 ]
 
 export function buildInitialState() {
@@ -51,7 +47,11 @@ export function buildInitialState() {
     groups[stack.id] = stack
   })
 
-  const clouds = OPENING_LAYOUT.map((spec) => {
+  const usedBytes =
+    opening.reduce((sum, s) => sum + s.bytes, 0) + chunks.reduce((sum, c) => sum + c.bytes, 0)
+  const freeEach = Math.max(0, QUOTA_START_BYTES - usedBytes) / OPENING_FREE
+
+  const clouds = SEEDS.map((spec) => {
     const stack = spec.stack != null ? opening[spec.stack] : null
     const chunk = spec.unique != null ? chunks[spec.unique] : null
     const bytes = stack?.bytes ?? chunk?.bytes ?? 0
@@ -61,10 +61,14 @@ export function buildInitialState() {
       groupId: stack?.id ?? null,
       xPct: spec.x,
       yPct: spec.y,
-      size: spec.size ?? sizeForBytes(bytes),
+      // capacity is the storage space this cloud *is*; bytes is the data in it.
+      // They are equal for a full cloud and diverge the moment you delete.
+      capacity: spec.type === 'free' ? freeEach : bytes,
       bytes,
-      seed: spec.seed,
+      size: 20,
+      seed: 101 + SEEDS.indexOf(spec) * 97,
       phase: 'idle',
+      entering: true,
     }
   }).filter((cloud) => cloud.type !== 'similar' || cloud.groupId)
 

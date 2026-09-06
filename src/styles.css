@@ -354,6 +354,24 @@ button {
   position: absolute;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  /* Clouds are repacked whenever the sky changes, so every move and every
+     change of size is eased rather than jumped. */
+  transition: left 900ms cubic-bezier(0.22, 0.68, 0.24, 1),
+    top 900ms cubic-bezier(0.22, 0.68, 0.24, 1),
+    width 900ms cubic-bezier(0.22, 0.68, 0.24, 1);
+}
+
+/* Bubbling up: a new cloud rises into the pack and swells into its space. */
+.cloud.is-entering .cloud__evap {
+  animation: bubble-up 760ms cubic-bezier(0.18, 0.85, 0.3, 1.06) both;
+}
+
+.cloud.is-leaving {
+  pointer-events: none;
+}
+
+.cloud.is-leaving .cloud__evap {
+  animation: bubble-pop 620ms ease-in both;
 }
 
 /* Scoped to .cloud so the legend's mini clouds, which reuse the type modifier
@@ -904,6 +922,17 @@ button {
   to { transform: translateY(5px) rotate(calc(var(--rot) * 1deg)); }
 }
 
+@keyframes bubble-up {
+  from { opacity: 0; transform: translateY(26%) scale(0.3); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bubble-pop {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: translateY(-12%) scale(0.25); }
+}
+
 @keyframes breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.035); }
@@ -1060,6 +1089,15 @@ button {
   .cloud--similar .cloud__hit,
   .sunburst__rays {
     animation: none;
+  }
+
+  .cloud {
+    transition-duration: 300ms;
+  }
+
+  .cloud.is-entering .cloud__evap,
+  .cloud.is-leaving .cloud__evap {
+    animation-duration: 260ms;
   }
 
   /* Rain becomes a still pattern that fades in and out rather than falling. */

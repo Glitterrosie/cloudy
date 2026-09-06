@@ -79,6 +79,7 @@ export default function App() {
   }, [])
 
   const settleCloud = useCallback((id) => dispatch({ type: 'SETTLE_CLOUD', id }), [])
+  const removeCloud = useCallback((id) => dispatch({ type: 'REMOVE_CLOUD', id }), [])
 
   const buyStorage = useCallback(() => {
     if (!stats.atCap) setStormToken((t) => t + 1)
@@ -140,6 +141,7 @@ export default function App() {
             ref={skyRef}
             clouds={state.clouds}
             groups={state.groups}
+            skyAspect={state.skyAspect}
             clearness={clearness}
             raining={raining}
             drops={drops}
@@ -150,6 +152,7 @@ export default function App() {
             reducedMotion={reducedMotion}
             onOpenCloud={openCloud}
             onSettled={settleCloud}
+            onLeft={removeCloud}
           />
         </div>
       </div>

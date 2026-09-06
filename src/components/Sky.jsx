@@ -1,8 +1,9 @@
-import { forwardRef } from 'react'
+import { forwardRef, useMemo } from 'react'
 import { Cloud } from './Cloud.jsx'
 import { RainOverlay } from './RainOverlay.jsx'
 import { SunBurst, StormFlash } from './SunBurst.jsx'
 import { mixHex } from '../lib/color.js'
+import { layoutSky } from '../lib/packing.js'
 import { formatSize, formatCount } from '../lib/format.js'
 
 // A wide enough range that clearing the sky is felt, not just noticed: a global
@@ -14,6 +15,7 @@ export const Sky = forwardRef(function Sky(
   {
     clouds,
     groups,
+    skyAspect,
     clearness,
     raining,
     drops,
@@ -24,9 +26,19 @@ export const Sky = forwardRef(function Sky(
     reducedMotion,
     onOpenCloud,
     onSettled,
+    onLeft,
   },
   ref,
 ) {
+  // Sizes come from each cloud's share of the quota, then everything is packed
+  // so the sky fills up like bubbles in a glass. Recomputed only when the set of
+  // clouds actually changes, not on every render.
+  const packed = useMemo(
+    () => layoutSky(clouds, skyAspect),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clouds, skyAspect],
+  )
+
   return (
     <div
       className="sky"
@@ -36,7 +48,7 @@ export const Sky = forwardRef(function Sky(
       <div className="sky__glow" style={{ opacity: clearness }} />
       <SunBurst visible={cleared} />
 
-      {clouds.map((cloud) => (
+      {packed.map((cloud) => (
         <Cloud
           key={cloud.id}
           cloud={cloud}
@@ -44,6 +56,7 @@ export const Sky = forwardRef(function Sky(
           reducedMotion={reducedMotion}
           onOpen={onOpenCloud}
           onSettled={onSettled}
+          onLeft={onLeft}
         />
       ))}
 

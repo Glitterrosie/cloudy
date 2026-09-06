@@ -35,10 +35,24 @@ function useCloudShape(seed) {
   }, [seed])
 }
 
-function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled }) {
+function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled, onLeft }) {
   const shape = useCloudShape(cloud.seed)
   const evapRef = useRef(null)
   const interactive = cloud.type === 'similar' && cloud.phase === 'idle'
+
+  // A new cloud bubbles up into place rather than appearing from nowhere.
+  useEffect(() => {
+    if (!cloud.entering) return undefined
+    const timer = setTimeout(() => onSettled(cloud.id), reducedMotion ? 260 : 760)
+    return () => clearTimeout(timer)
+  }, [cloud.entering, cloud.id, reducedMotion, onSettled])
+
+  // A cloud whose space has been used up shrinks away, then hands its space on.
+  useEffect(() => {
+    if (cloud.phase !== 'leaving') return undefined
+    const timer = setTimeout(() => onLeft(cloud.id), reducedMotion ? 260 : 620)
+    return () => clearTimeout(timer)
+  }, [cloud.phase, cloud.id, reducedMotion, onLeft])
 
   // The clearing beat: a pulse to catch the eye while the fill transitions to
   // white, and a small puff of the data leaving. The cloud itself stays — it is
@@ -119,7 +133,15 @@ function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled }) {
 
   return (
     <div
-      className={`cloud cloud--${cloud.type} ${cloud.phase !== 'idle' ? 'is-clearing' : ''}`}
+      className={[
+        'cloud',
+        `cloud--${cloud.type}`,
+        cloud.phase === 'freed' ? 'is-clearing' : '',
+        cloud.phase === 'leaving' ? 'is-leaving' : '',
+        cloud.entering ? 'is-entering' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={style}
     >
       <div className="cloud__drift">
