@@ -19,7 +19,7 @@ export const Sky = forwardRef(function Sky(
     drops,
     cleared,
     stormToken,
-    freedGb,
+    freedBytes,
     freedPhotos,
     reducedMotion,
     onOpenCloud,
@@ -54,7 +54,7 @@ export const Sky = forwardRef(function Sky(
         <div className="sky__win" role="status">
           <p className="sky__win-line">Clear skies.</p>
           <p className="sky__win-sub">
-            You freed {formatSize(freedGb)} — {formatCount(freedPhotos)} photos you were never
+            You freed {formatSize(freedBytes)} — {formatCount(freedPhotos)} photos you were never
             going to look at.
           </p>
         </div>

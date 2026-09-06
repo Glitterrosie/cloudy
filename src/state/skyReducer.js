@@ -1,17 +1,16 @@
 import {
   buildInitialState,
-  QUOTA_STEP_GB,
-  sizeForGb,
+  QUOTA_STEP_BYTES,
+  sizeForBytes,
   MIN_FREE_SIZE,
 } from '../data/initialState.js'
-import { makeGroup, SPAWN_GROUP_IDS } from '../data/photoGroups.js'
+import { analyseLibrary } from '../data/library.js'
 import { mulberry32, between, clamp } from '../lib/rng.js'
-import { photosToGb } from '../lib/format.js'
 
 export const FULL_SKY_NUDGE = 'Your sky is full. Clean out a slate-blue cloud to make room.'
 export const OUT_OF_SPACE_NUDGE =
   'No space left. Buy more storage, or clean out a slate-blue cloud.'
-export const NOTHING_NEW_NUDGE = 'That is every kind of photo you take. There are no new ones.'
+export const NOTHING_NEW_NUDGE = 'That is every stack of duplicates in the library.'
 
 // The token re-triggers the message animation, so pressing a blocked button
 // visibly does something rather than looking broken.
@@ -35,22 +34,34 @@ const halfHeight = (size) => size * 0.3
  * candidates by edge-to-edge clearance rather than centre distance, so a big
  * cloud is given the room it actually occupies.
  */
-function findSpot(rand, clouds, size, aspect) {
-  let best = { x: 50, y: 50 }
+function clearanceAt(x, y, clouds, size, aspect) {
+  let clearance = Infinity
+  clouds.forEach((c) => {
+    const dx = Math.abs(c.xPct - x) - (halfWidth(c.size) + halfWidth(size))
+    const dy = Math.abs(c.yPct - y) * aspect - (halfHeight(c.size) + halfHeight(size)) * aspect
+    // Positive on either axis means the two boxes already miss each other.
+    clearance = Math.min(clearance, Math.max(dx, dy))
+  })
+  return clearance
+}
+
+function findSpot(rand, clouds, size, aspect, candidates = []) {
+  let best = null
   let bestClearance = -Infinity
+
+  // Any positions the caller already has in mind get considered first.
+  for (const candidate of candidates) {
+    const clearance = clearanceAt(candidate.x, candidate.y, clouds, size, aspect)
+    if (clearance > bestClearance) {
+      bestClearance = clearance
+      best = candidate
+    }
+  }
 
   for (let i = 0; i < 48; i += 1) {
     const x = between(rand, 16, 84)
     const y = between(rand, 8, 92)
-    let clearance = Infinity
-
-    clouds.forEach((c) => {
-      const dx = Math.abs(c.xPct - x) - (halfWidth(c.size) + halfWidth(size))
-      const dy = Math.abs(c.yPct - y) * aspect - (halfHeight(c.size) + halfHeight(size)) * aspect
-      // Positive on either axis means the two boxes already miss each other.
-      clearance = Math.min(clearance, Math.max(dx, dy))
-    })
-
+    const clearance = clearanceAt(x, y, clouds, size, aspect)
     if (clearance > bestClearance) {
       bestClearance = clearance
       best = { x, y }
@@ -58,7 +69,7 @@ function findSpot(rand, clouds, size, aspect) {
     }
   }
 
-  return best
+  return best ?? { x: 50, y: 50 }
 }
 
 /**
@@ -87,7 +98,7 @@ function spawnClouds(state) {
       xPct: spot.x,
       yPct: spot.y,
       size,
-      gb: 0,
+      bytes: 0,
       seed: Math.floor(rand() * 1e6),
       phase: 'idle',
     })
@@ -96,7 +107,7 @@ function spawnClouds(state) {
   return {
     ...state,
     clouds,
-    quotaGb: state.quotaGb + QUOTA_STEP_GB,
+    quotaBytes: state.quotaBytes + QUOTA_STEP_BYTES,
     purchases: state.purchases + 1,
     spawnSeed: (state.spawnSeed * 1664525 + 1013904223) >>> 0,
     nudge: null,
@@ -107,38 +118,48 @@ function spawnClouds(state) {
 /**
  * Taking new photos fills the space you have.
  *
- * A new slate-blue cloud of near-duplicates appears, and the white free-space
- * clouds shrink to pay for it — space does not come from nowhere. A white cloud
- * that shrinks past being readable has been used up, and goes.
+ * The next stack the detector found appears as a slate-blue cloud, and the white
+ * free-space clouds shrink to pay for it — space does not come from nowhere. A
+ * white cloud that shrinks past being readable has been used up, and goes.
  */
 function addPhotos(state) {
-  const taken = new Set(Object.keys(state.groups))
-  const available = SPAWN_GROUP_IDS.filter((id) => !taken.has(id))
-  if (!available.length) return withNudge(state, NOTHING_NEW_NUDGE)
+  const { stacks } = analyseLibrary()
+  const next = stacks.find((s) => !state.usedStackIds.includes(s.id))
+  if (!next) return withNudge(state, NOTHING_NEW_NUDGE)
 
   const stats = selectStats(state)
-  if (stats.freeGb <= 0.05) return withNudge(state, OUT_OF_SPACE_NUDGE)
+  if (stats.freeBytes <= next.bytes * 0.25) return withNudge(state, OUT_OF_SPACE_NUDGE)
   if (state.clouds.length >= state.cloudCap) return withNudge(state, FULL_SKY_NUDGE)
 
   const rand = mulberry32(state.spawnSeed)
-  const group = makeGroup(available[Math.floor(rand() * available.length)])
 
   // Free space shrinks by roughly what the new photos take up.
-  const eaten = clamp(group.gb / Math.max(0.5, stats.freeGb), 0.12, 0.55)
-  const clouds = state.clouds
-    .map((c) => (c.type === 'free' ? { ...c, size: c.size * (1 - eaten) } : c))
-    .filter((c) => c.type !== 'free' || c.size >= MIN_FREE_SIZE)
+  const eaten = clamp(next.bytes / Math.max(1e6, stats.freeBytes), 0.12, 0.55)
+  const shrunk = state.clouds.map((c) =>
+    c.type === 'free' ? { ...c, size: c.size * (1 - eaten) } : c,
+  )
+  const usedUp = shrunk.filter((c) => c.type === 'free' && c.size < MIN_FREE_SIZE)
+  const clouds = shrunk.filter((c) => c.type !== 'free' || c.size >= MIN_FREE_SIZE)
 
-  const size = sizeForGb(group.gb)
-  const spot = findSpot(rand, clouds, size, state.skyAspect)
+  const size = sizeForBytes(next.bytes)
+  // New photos would naturally take the room the free space just gave up, so
+  // those spots are offered first — but a used-up sliver is smaller than the
+  // stack replacing it, so they only win if they are genuinely the roomiest.
+  const spot = findSpot(
+    rand,
+    clouds,
+    size,
+    state.skyAspect,
+    usedUp.map((c) => ({ x: c.xPct, y: c.yPct })),
+  )
   clouds.push({
-    id: `c-sim-${group.id}`,
+    id: `c-sim-${next.id}`,
     type: 'similar',
-    groupId: group.id,
+    groupId: next.id,
     xPct: spot.x,
     yPct: spot.y,
     size,
-    gb: group.gb,
+    bytes: next.bytes,
     seed: Math.floor(rand() * 1e6),
     phase: 'idle',
   })
@@ -146,7 +167,8 @@ function addPhotos(state) {
   return {
     ...state,
     clouds,
-    groups: { ...state.groups, [group.id]: group },
+    groups: { ...state.groups, [next.id]: next },
+    usedStackIds: [...state.usedStackIds, next.id],
     spawnSeed: (state.spawnSeed * 1664525 + 1013904223) >>> 0,
     nudge: null,
     dirty: true,
@@ -157,18 +179,20 @@ function cleanGroup(state, { groupId, keptIds }) {
   const group = state.groups[groupId]
   if (!group || group.cleaned) return state
 
-  const keptCount = Math.max(1, keptIds.length)
-  const keptGb = photosToGb(keptCount)
   const target = state.clouds.find((c) => c.groupId === groupId)
   if (!target) return state
 
-  // The photos you keep don't evaporate — they become unique data on the nearest
-  // blue cloud, so the storage bar keeps telling the truth.
+  // Deleting a stack keeps a favourite or two. Their share of the stack stays
+  // in your library, so the storage bar keeps telling the truth.
+  const keptCount = Math.max(1, keptIds.length)
+  const perPhoto = group.bytes / group.count
+  const keptBytes = Math.round(perPhoto * keptCount)
+
   let nearestId = null
   let nearestDistance = Infinity
   state.clouds.forEach((c) => {
     if (c.type !== 'unique' || c.phase !== 'idle') return
-    const distance = Math.hypot(c.xPct - target.xPct, (c.yPct - target.yPct) * 0.55)
+    const distance = Math.hypot(c.xPct - target.xPct, (c.yPct - target.yPct) * state.skyAspect)
     if (distance < nearestDistance) {
       nearestDistance = distance
       nearestId = c.id
@@ -176,10 +200,11 @@ function cleanGroup(state, { groupId, keptIds }) {
   })
 
   const clouds = state.clouds.map((c) => {
-    if (c.id === target.id) return { ...c, type: 'free', phase: 'freed', gb: 0 }
+    // The cloud stays: it is storage you still own, now empty.
+    if (c.id === target.id) return { ...c, type: 'free', phase: 'freed', bytes: 0 }
     if (c.id === nearestId) {
-      const gb = c.gb + keptGb
-      return { ...c, gb, size: sizeForGb(gb) }
+      const bytes = c.bytes + keptBytes
+      return { ...c, bytes, size: sizeForBytes(bytes) }
     }
     return c
   })
@@ -191,7 +216,7 @@ function cleanGroup(state, { groupId, keptIds }) {
       ...state.groups,
       [groupId]: { ...group, cleaned: true, keptCount },
     },
-    freedGb: state.freedGb + Math.max(0, group.gb - keptGb),
+    freedBytes: state.freedBytes + Math.max(0, group.bytes - keptBytes),
     freedPhotos: state.freedPhotos + Math.max(0, group.count - keptCount),
     nudge: null,
     dirty: true,
@@ -223,8 +248,7 @@ export function skyReducer(state, action) {
     case 'CLEAN_GROUP':
       return cleanGroup(state, action)
 
-    // The emptied cloud stays: it is storage you still own, just not full any
-    // more. This only ends its transition animation.
+    // Only ends the transition animation — the emptied cloud itself stays.
     case 'SETTLE_CLOUD':
       return {
         ...state,
@@ -245,10 +269,10 @@ export function selectStats(state) {
   const live = state.clouds
   const similar = live.filter((c) => c.type === 'similar')
   const unique = live.filter((c) => c.type === 'unique')
-  const similarGb = similar.reduce((sum, c) => sum + c.gb, 0)
-  const uniqueGb = unique.reduce((sum, c) => sum + c.gb, 0)
-  const usedGb = similarGb + uniqueGb
-  const freeGb = Math.max(0, state.quotaGb - usedGb)
+  const similarBytes = similar.reduce((sum, c) => sum + c.bytes, 0)
+  const uniqueBytes = unique.reduce((sum, c) => sum + c.bytes, 0)
+  const usedBytes = similarBytes + uniqueBytes
+  const freeBytes = Math.max(0, state.quotaBytes - usedBytes)
 
   // "The more clouds with similar data you have, the higher the probability of
   // being rained on" — so this counts duplicate clouds rather than taking their
@@ -258,10 +282,10 @@ export function selectStats(state) {
   return {
     similarCount: similar.length,
     cloudCount: live.length,
-    similarGb,
-    uniqueGb,
-    usedGb,
-    freeGb,
+    similarBytes,
+    uniqueBytes,
+    usedBytes,
+    freeBytes,
     intensity,
     atCap: live.length >= state.cloudCap,
     cleared: state.dirty && similar.length === 0,

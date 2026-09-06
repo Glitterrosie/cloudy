@@ -748,15 +748,26 @@ button {
 .thumb__img {
   position: absolute;
   inset: 0;
-  background-size: 165% 165%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #dfe6ee;
   /* Enough desaturation to read as "going away", not so much that you can no
      longer see it is the same photograph as the one you kept. */
-  filter: hue-rotate(var(--hue)) grayscale(0.55) contrast(0.94);
+  filter: grayscale(0.62) contrast(0.94);
   transition: filter 260ms ease;
 }
 
 .thumb.is-kept .thumb__img {
-  filter: hue-rotate(var(--hue));
+  filter: none;
+}
+
+/* A photograph that could not load still has to read as a photograph that is
+   about to be deleted, so it falls back to a drawn tint. */
+.thumb__img--fallback {
+  background: linear-gradient(160deg, #cddcea, #8fa9c2 60%, #6d8aa6);
+  filter: hue-rotate(var(--hue)) grayscale(0.5);
 }
 
 .thumb__badge {

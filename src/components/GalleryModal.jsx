@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PhotoThumb, MoreTile } from './PhotoThumb.jsx'
-import { SAMPLE_SIZE } from '../data/photoGroups.js'
-import { formatCount, formatSize, photosToGb } from '../lib/format.js'
+import { formatCount, formatSize } from '../lib/format.js'
 
 /**
  * The gallery opens with the outcome already staged: one photo kept, the rest
@@ -107,7 +106,7 @@ export function GalleryModal({ group, originRect, reducedMotion, onCancel, onCon
     onConfirm(Array.from(kept))
   }
 
-  const freed = photosToGb(deleteCount)
+  const freed = Math.round((group.bytes / group.count) * deleteCount)
 
   return (
     <div className={`modal ${busy ? 'is-leaving' : ''}`}>
@@ -131,7 +130,7 @@ export function GalleryModal({ group, originRect, reducedMotion, onCancel, onCon
           </h2>
           <p className="modal__sub">{group.subline}</p>
           <p className="modal__meta">
-            Showing {SAMPLE_SIZE} of {formatCount(group.count)} · {formatSize(group.gb)}
+            Showing {group.samples.length} of {formatCount(group.count)} · {formatSize(group.bytes)}
           </p>
         </header>
 
@@ -140,7 +139,6 @@ export function GalleryModal({ group, originRect, reducedMotion, onCancel, onCon
             <PhotoThumb
               key={item.id}
               item={item}
-              group={group}
               kept={kept.has(item.id)}
               onToggle={() => toggle(item.id)}
               ref={(node) => {
@@ -149,7 +147,7 @@ export function GalleryModal({ group, originRect, reducedMotion, onCancel, onCon
               }}
             />
           ))}
-          <MoreTile count={group.count - SAMPLE_SIZE} />
+          <MoreTile count={group.count - group.samples.length} />
         </div>
 
         <footer className="modal__foot">

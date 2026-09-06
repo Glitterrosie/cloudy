@@ -1,34 +1,34 @@
 import { formatSize } from '../lib/format.js'
 
-export function StorageBar({ similarGb, uniqueGb, freeGb, usedGb, quotaGb, freedGb }) {
-  const pct = (gb) => `${Math.max(0, Math.min(100, (gb / quotaGb) * 100))}%`
+export function StorageBar({ similarBytes, uniqueBytes, freeBytes, usedBytes, quotaBytes, freedBytes }) {
+  const pct = (bytes) => `${Math.max(0, Math.min(100, (bytes / quotaBytes) * 100))}%`
 
   return (
     <div className="storage">
       <p className="storage__line">
-        <strong>{formatSize(usedGb)}</strong> of {formatSize(quotaGb)} used
-        {similarGb > 0.05 && (
+        <strong>{formatSize(usedBytes)}</strong> of {formatSize(quotaBytes)} used
+        {similarBytes > 1e5 && (
           <>
             {' · '}
-            <span className="storage__warn">{formatSize(similarGb)} of it is near-duplicates</span>
+            <span className="storage__warn">{formatSize(similarBytes)} of it is near-duplicates</span>
           </>
         )}
-        {freedGb > 0.01 && (
+        {freedBytes > 1e5 && (
           <>
             {' '}
-            <span className="storage__freed">{formatSize(freedGb)} freed</span>
+            <span className="storage__freed">{formatSize(freedBytes)} freed</span>
           </>
         )}
       </p>
       <div
         className="storage__bar"
         role="img"
-        aria-label={`${formatSize(usedGb)} of ${formatSize(quotaGb)} used. ${formatSize(
-          similarGb,
-        )} near-duplicates, ${formatSize(uniqueGb)} unique, ${formatSize(freeGb)} free.`}
+        aria-label={`${formatSize(usedBytes)} of ${formatSize(quotaBytes)} used. ${formatSize(
+          similarBytes,
+        )} near-duplicates, ${formatSize(uniqueBytes)} unique, ${formatSize(freeBytes)} free.`}
       >
-        <span className="storage__seg storage__seg--similar" style={{ width: pct(similarGb) }} />
-        <span className="storage__seg storage__seg--unique" style={{ width: pct(uniqueGb) }} />
+        <span className="storage__seg storage__seg--similar" style={{ width: pct(similarBytes) }} />
+        <span className="storage__seg storage__seg--unique" style={{ width: pct(uniqueBytes) }} />
       </div>
     </div>
   )

@@ -3,3 +3,7 @@ dist
 .DS_Store
 *.local
 .vite
+
+# Source photographs are large and re-downloadable from tools/sources/sources.json
+tools/sources/*
+!tools/sources/sources.json

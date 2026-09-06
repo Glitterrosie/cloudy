@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { MiniCloud } from './Legend.jsx'
-import { GB_PER_PHOTO } from '../lib/format.js'
+import { analyseLibrary } from '../data/library.js'
+import { formatCount, formatSize } from '../lib/format.js'
 
 export function InfoModal({ onClose }) {
   const closeRef = useRef(null)
+  const library = analyseLibrary()
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true })
@@ -65,9 +67,17 @@ export function InfoModal({ onClose }) {
             clouds to fill. Either way, the sky gets busier.
           </p>
 
+          <p>
+            The photographs are real, and so is the sorting. Cloudy carries a library of{' '}
+            {formatCount(library.totalPhotos)} freely-licensed photographs ({formatSize(library.totalBytes)}),
+            and every time this page loads it compares all of them against each other and finds the
+            near-identical ones itself — {library.stacks.length} stacks, in about {library.tookMs} ms.
+            Nothing is decided in advance.
+          </p>
+
           <p className="info__note">
-            Nothing here touches your real photos — it is a concept, not a utility. Sizes assume{' '}
-            {(GB_PER_PHOTO * 1024).toFixed(1)} MB per photo, about what a phone camera produces.
+            It never touches your own photos — it is a concept, not a utility. Sizes shown are the
+            real file sizes of these images. Photo credits are listed in the project's CREDITS file.
           </p>
         </div>
 

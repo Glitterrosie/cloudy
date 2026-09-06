@@ -3,11 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Cloudy — a sky-as-storage design provocation about data hoarding.",
+  "description": "Cloudy \u2014 a sky-as-storage design provocation about data hoarding.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "library:fetch": "node tools/fetch-sources.mjs",
+    "library:build": "node tools/build-library.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -15,6 +17,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "sharp": "^0.35.4",
     "vite": "^5.4.11"
   }
 }

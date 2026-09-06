@@ -126,12 +126,12 @@ export default function App() {
           </header>
 
           <StorageBar
-            similarGb={stats.similarGb}
-            uniqueGb={stats.uniqueGb}
-            freeGb={stats.freeGb}
-            usedGb={stats.usedGb}
-            quotaGb={state.quotaGb}
-            freedGb={state.freedGb}
+            similarBytes={stats.similarBytes}
+            uniqueBytes={stats.uniqueBytes}
+            freeBytes={stats.freeBytes}
+            usedBytes={stats.usedBytes}
+            quotaBytes={state.quotaBytes}
+            freedBytes={state.freedBytes}
           />
 
           <Legend onOpenInfo={() => setShowInfo(true)} />
@@ -145,7 +145,7 @@ export default function App() {
             drops={drops}
             cleared={stats.cleared}
             stormToken={stormToken}
-            freedGb={state.freedGb}
+            freedBytes={state.freedBytes}
             freedPhotos={state.freedPhotos}
             reducedMotion={reducedMotion}
             onOpenCloud={openCloud}

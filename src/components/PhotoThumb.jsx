@@ -1,29 +1,37 @@
-import { forwardRef } from 'react'
+import { forwardRef, useState } from 'react'
 
 /**
- * Placeholder photos are drawn, not downloaded: a per-stack gradient with a small
- * per-photo hue and framing wobble. Near-identical but not identical — which is
- * exactly what a pile of duplicates looks like — and nothing to load over the
- * exhibition wifi.
+ * A real photograph from the library.
+ *
+ * If it cannot load — a phone that lost the hall wifi mid-visit — the tile falls
+ * back to a drawn tint rather than a broken image, so the gallery still reads
+ * and the deletion still makes sense.
  */
-export const PhotoThumb = forwardRef(function PhotoThumb({ item, group, kept, onToggle }, ref) {
+export const PhotoThumb = forwardRef(function PhotoThumb({ item, kept, onToggle }, ref) {
+  const [failed, setFailed] = useState(false)
+
   return (
     <button
       type="button"
       ref={ref}
-      className={`thumb ${kept ? 'is-kept' : ''}`}
+      className={`thumb ${kept ? 'is-kept' : ''} ${failed ? 'is-blank' : ''}`}
       onClick={onToggle}
       aria-pressed={kept}
-      style={{ '--tilt': `${item.tilt}deg` }}
+      style={{ '--tilt': `${item.tilt}deg`, '--hue': `${item.hue}deg` }}
     >
-      <span
-        className="thumb__img"
-        style={{
-          backgroundImage: `${group.accent}, ${group.base}`,
-          backgroundPosition: `${item.shift}% ${item.shift}%`,
-          '--hue': `${item.hue}deg`,
-        }}
-      />
+      {failed ? (
+        <span className="thumb__img thumb__img--fallback" />
+      ) : (
+        <img
+          className="thumb__img"
+          src={item.src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable="false"
+          onError={() => setFailed(true)}
+        />
+      )}
       <span className="thumb__badge" aria-hidden="true">
         {kept ? '♥' : '✕'}
       </span>
