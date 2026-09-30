@@ -1,14 +1,40 @@
 import libraryData from './library.json'
 import { clusterPhotos, DUPLICATE_THRESHOLD } from '../lib/duplicates.js'
-
-/** A cluster this size or larger is a "stack" worth showing as a duplicate cloud. */
-const MIN_STACK = 3
-// 11 samples plus the "+N more" tile fills a 3-across grid exactly.
-const SAMPLE_LIMIT = 11
+import { MIN_STACK, SAMPLE_LIMIT, splitSingles } from '../lib/chunking.js'
 
 const asset = (file) => `${import.meta.env.BASE_URL}photos/${file}`
 
 const sum = (photos) => photos.reduce((total, p) => total + p.b, 0)
+
+/** The thumbnails a gallery can show for a set of photos. */
+function toSamples(photos) {
+  return photos
+    .filter((p) => p.t)
+    .slice(0, SAMPLE_LIMIT)
+    .map((p, i) => ({
+      id: p.i,
+      filename: p.n,
+      src: asset(`${p.i}.webp`),
+      // Kept as a fallback tint if a thumbnail cannot load — a flaky hall
+      // network should degrade to something drawn, not to a broken image.
+      hue: ((i * 37) % 13) - 6,
+      tilt: (((i * 53) % 9) - 4) * 0.35,
+    }))
+}
+
+/** One blue cloud's worth of one-off photographs. These open too, but read-only:
+ *  nothing in them is a duplicate, so there is nothing to clean up. */
+function describeUnique(photos, index) {
+  return {
+    id: `unique-${index}`,
+    kind: 'unique',
+    label: `${photos.length} photos that only exist once`,
+    subline: 'Every one of these is the only copy. Nothing to clean up here.',
+    count: photos.length,
+    bytes: sum(photos),
+    samples: toSamples(photos),
+  }
+}
 
 function describe(cluster, index) {
   // A cluster's subject is whatever most of its photos came from. Clusters the
@@ -26,18 +52,7 @@ function describe(cluster, index) {
     subline: theme?.subline ?? 'Different days. Nobody could tell them apart.',
     count: cluster.length,
     bytes: sum(cluster),
-    samples: cluster
-      .filter((p) => p.t)
-      .slice(0, SAMPLE_LIMIT)
-      .map((p, i) => ({
-        id: p.i,
-        filename: p.n,
-        src: asset(`${p.i}.webp`),
-        // Kept as a fallback tint if a thumbnail cannot load — a flaky hall
-        // network should degrade to something drawn, not to a broken image.
-        hue: ((i * 37) % 13) - 6,
-        tilt: (((i * 53) % 9) - 4) * 0.35,
-      })),
+    samples: toSamples(cluster),
   }
 }
 
@@ -77,6 +92,7 @@ export function analyseLibrary() {
 
   cache = {
     stacks,
+    uniques: splitSingles(singles).map(describeUnique),
     singleCount: singles.length,
     singleBytes: sum(singles),
     totalPhotos: libraryData.photos.length,
@@ -87,12 +103,8 @@ export function analyseLibrary() {
   return cache
 }
 
-/** Unique data: the photos with no duplicates, split into a few clouds. */
+/** Unique data: the photos with no duplicates, split into a few clouds. Each
+ *  chunk carries its own real thumbnails, so the cloud can be opened. */
 export function uniqueChunks(count) {
-  const { singleBytes, singleCount } = analyseLibrary()
-  return Array.from({ length: count }, (_, i) => ({
-    bytes: Math.round(singleBytes / count),
-    count: Math.round(singleCount / count),
-    key: `unique-${i}`,
-  }))
+  return analyseLibrary().uniques.slice(0, count)
 }

@@ -38,7 +38,10 @@ function useCloudShape(seed) {
 function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled, onLeft }) {
   const shape = useCloudShape(cloud.seed)
   const evapRef = useRef(null)
-  const interactive = cloud.type === 'similar' && cloud.phase === 'idle'
+  // Slate clouds open to be cleaned; blue ones open to be looked at.
+  const interactive =
+    (cloud.type === 'similar' || (cloud.type === 'unique' && Boolean(group))) &&
+    cloud.phase === 'idle'
   // The group is the authority for a stack that is open to be cleaned; for every
   // other cloud the count lives on the cloud, because it is the running total of
   // whatever has been added to or taken out of it.
@@ -132,9 +135,11 @@ function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled, onLeft
     </svg>
   )
 
-  const label = group
-    ? `${group.label}. Open this stack to clean it up.`
-    : 'A cloud of photos'
+  const label = !group
+    ? 'A cloud of photos'
+    : cloud.type === 'unique'
+      ? `${photoCount} photos that only exist once. Open to look through them.`
+      : `${group.label}. Open this stack to clean it up.`
 
   return (
     <div
@@ -144,6 +149,7 @@ function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled, onLeft
         cloud.phase === 'freed' ? 'is-clearing' : '',
         cloud.phase === 'leaving' ? 'is-leaving' : '',
         cloud.entering ? 'is-entering' : '',
+        interactive && cloud.type === 'unique' ? 'is-openable' : '',
       ]
         .filter(Boolean)
         .join(' ')}

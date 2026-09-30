@@ -32,9 +32,10 @@ The rain eases and the sky brightens.
 
 Two buttons sit **outside** the phone, standing in for things you do in the real world:
 
-- **Take new pictures** adds a slate-blue cloud of near-duplicates *and* a handful of
-  ordinary one-off photographs — an afternoon of shooting produces both — and shrinks the
-  white clouds to pay for all of it. Space does not come from nowhere.
+- **Take new pictures** is random: a press might bring a burst of near-duplicates, a
+  handful of ordinary one-off photographs, or both at once. Which burst it is comes up
+  at random from those not yet in the sky, and the white clouds shrink to pay for it.
+  Space does not come from nowhere.
 - **Get more storage** adds white clouds — capacity you have bought and not yet filled —
   and a storm. Buying your way out just gives you more sky to fill.
 
@@ -193,8 +194,13 @@ All state lives in one `useReducer`. A few decisions worth knowing about if you 
   out from under a reaching finger.
 - **Rain is a fixed pool of drops** that is paused rather than unmounted, so an idle sky
   animates nothing at all.
-- **Only slate-blue clouds are tappable.** The others ignore pointer events, so a tap on
-  overlapping clouds always reaches the one that matters.
+- **Slate-blue clouds open to be cleaned; blue ones open to be looked at.** Blue clouds
+  show their photographs read-only — nothing in them is a duplicate, so there is nothing
+  to delete — and sit one layer below the slate ones, so a tap on overlapping clouds
+  still reaches the one that matters. White clouds ignore pointer events.
+- **Cloud area is proportional to storage, exactly.** The size cap is applied as one
+  common scale factor rather than per cloud; clamping each one individually made every
+  large cloud the same width, so a nearly-full white cloud looked as roomy as an empty one.
 - **Clouds are packed like bubbles in a glass, not placed by luck.** `layoutSky` in
   `src/lib/packing.js` sizes every cloud from its share of the quota and then pushes
   overlapping pairs apart, measuring each axis in units of the two clouds' own radii so

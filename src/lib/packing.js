@@ -27,10 +27,13 @@ const NESTLE = 0.88
 const MIN_SIZE = 9
 const MAX_SIZE = 54
 
-export function sizeForShare(share, aspect) {
+/** The width a cloud would have if it were given its share of the panel outright,
+ *  with no upper limit. Area is proportional to share, so width goes with its
+ *  square root. */
+export function rawSizeForShare(share, aspect) {
   const panelArea = 100 * (100 * aspect)
   const area = share * COVERAGE * panelArea
-  return clamp(Math.sqrt(area / (CLOUD_ASPECT * SHAPE_FILL)), MIN_SIZE, MAX_SIZE)
+  return Math.sqrt(area / (CLOUD_ASPECT * SHAPE_FILL))
 }
 
 /**
@@ -121,9 +124,18 @@ export function packSky(clouds, aspect, { iterations = 300 } = {}) {
  */
 export function layoutSky(clouds, aspect) {
   const totalCapacity = clouds.reduce((sum, c) => sum + Math.max(0, c.capacity), 0) || 1
-  const sized = clouds.map((cloud) => ({
+  const raw = clouds.map((c) => rawSizeForShare(Math.max(0, c.capacity) / totalCapacity, aspect))
+
+  // Clamping each cloud on its own destroys proportion: once the biggest ones hit
+  // the cap they are all the same width, and a cloud holding a third of the
+  // space looks like one holding all of it. So the cap is applied as one common
+  // scale factor, which shrinks every cloud by the same fraction and keeps the
+  // areas in exact ratio to the storage they stand for. Only the legibility floor
+  // is still per-cloud, and it only bites on a cloud that is nearly empty.
+  const scale = Math.min(1, MAX_SIZE / (Math.max(...raw) || 1))
+  const sized = clouds.map((cloud, i) => ({
     ...cloud,
-    size: sizeForShare(Math.max(0, cloud.capacity) / totalCapacity, aspect),
+    size: Math.max(MIN_SIZE, raw[i] * scale),
   }))
   return packSky(sized, aspect)
 }

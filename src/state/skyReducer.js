@@ -139,24 +139,38 @@ function rebalance(clouds, delta, floor, rand, excludeId) {
     : adjustFree(clouds, delta, floor, excludeId)
 }
 
-/** Photos that are not part of any burst, added alongside one. Nobody comes back
- *  from an afternoon with nothing but a burst: there are always a few one-offs
- *  in among it, and they take up space like anything else. */
-function uniqueIntake(rand, library) {
+/** How many one-off photographs a press brings, and what they weigh. A quick
+ *  handful alongside a burst, a proper afternoon's worth when they come alone. */
+function uniqueIntake(rand, library, min, max) {
   const perSingle = library.singleBytes / Math.max(1, library.singleCount)
-  const count = Math.round(between(rand, 4, 17))
+  const count = Math.round(between(rand, min, max))
   return { count, bytes: Math.round(perSingle * count) }
 }
 
-/** Put a batch of one-off photos somewhere: into the smallest blue cloud if
- *  there is one, otherwise by turning a white cloud blue. Returns null when
- *  there is nowhere for them to go. */
-function absorbUnique(clouds, intake, floor, rand, reservedId) {
+/** Which blue chunk of the library a new blue cloud shows, preferring one that no
+ *  other cloud is already showing so two clouds don't open onto the same photos. */
+function pickUniqueGroup(clouds, rand) {
+  const { uniques } = analyseLibrary()
+  const taken = new Set(clouds.filter((c) => c.type === 'unique').map((c) => c.groupId))
+  const free = uniques.filter((u) => !taken.has(u.id))
+  const pool = free.length ? free : uniques
+  return pool[Math.floor(rand() * pool.length)].id
+}
+
+/** Put a batch of one-off photographs somewhere. `fresh` asks for a brand new blue
+ *  cloud (a white one filling up); otherwise they go into the smallest existing
+ *  blue cloud, which is also what happens whenever there is no white to fill.
+ *  Returns null when there is nowhere for them to go. */
+function absorbUnique(clouds, intake, floor, rand, { fresh = false, reservedId } = {}) {
   const target = clouds
     .filter((c) => c.type === 'unique' && c.phase !== 'leaving')
     .sort((a, b) => a.capacity - b.capacity)[0]
 
-  if (target) {
+  const host = clouds
+    .filter((c) => c.type === 'free' && c.phase !== 'leaving' && c.id !== reservedId)
+    .sort((a, b) => b.capacity - a.capacity)[0]
+
+  if (target && !(fresh && host)) {
     const next = adjustFree(clouds, -intake.bytes, floor)
     return next.map((c) =>
       c.id === target.id
@@ -170,127 +184,151 @@ function absorbUnique(clouds, intake, floor, rand, reservedId) {
     )
   }
 
-  const host = clouds
-    .filter((c) => c.type === 'free' && c.phase !== 'leaving' && c.id !== reservedId)
-    .sort((a, b) => b.capacity - a.capacity)[0]
   if (!host) return null
 
+  const groupId = pickUniqueGroup(clouds, rand)
   const next = clouds.map((c) =>
     c.id === host.id
       ? {
           ...c,
           type: 'unique',
+          groupId,
           capacity: intake.bytes,
           bytes: intake.bytes,
           photos: intake.count,
+          filling: (c.filling ?? 0) + 1,
         }
       : c,
   )
   return rebalance(next, host.capacity - intake.bytes, floor, rand, host.id)
 }
 
+/** Chance of each outcome for one press of "Take new pictures". */
+const CHANCE_DUPES_ONLY = 0.34
+const CHANCE_UNIQUE_ONLY = 0.28 // the rest, 0.38, is both
+
 /**
- * Taking new photos fills the space you already have.
+ * Taking new pictures fills the space you already have — with whatever the
+ * afternoon happened to produce.
  *
- * An afternoon of shooting produces both things at once: a burst of near
- * identical frames, and a handful of ordinary photographs that only exist
- * once. So a press adds a slate-blue stack *and* grows the blue, and the white
- * clouds shrink to pay for all of it.
+ * That is deliberately not the same thing every time. A press might bring a burst
+ * of near-identical frames, or a handful of ordinary one-off photographs, or both
+ * at once, and which burst it is comes up at random from the ones not yet in the
+ * sky. `roll` is the randomness, supplied by the caller so the reducer stays pure.
  *
- * The only thing that can stop you is running out of room — not how many clouds
- * are in the sky. Where the photos go depends on what is up there: a white cloud
- * big enough to hold them is filled in and changes colour, because that is
- * literally what happens to free space. Otherwise a new cloud appears.
- *
- * Once every duplicate stack in the library is already in the sky, further
- * photos are ordinary one-offs, and they make the blue clouds bigger.
+ * The only thing that can stop you is running out of room. Where the photos go
+ * depends on what is up there: a white cloud big enough to hold a burst is filled
+ * in and changes colour, because that is literally what happens to free space;
+ * otherwise a new cloud appears. One-offs either grow a blue cloud or, some of the
+ * time, fill a white one and make a new blue cloud of their own.
  */
-function addPhotos(state) {
+function addPhotos(state, roll) {
   const library = analyseLibrary()
   const stats = selectStats(state)
-  const next = library.stacks.find((s) => !state.usedStackIds.includes(s.id))
 
-  const rand = mulberry32(state.spawnSeed)
-  const intake = uniqueIntake(rand, library)
+  const seed = roll == null ? state.spawnSeed : (state.spawnSeed ^ Math.floor(roll * 4294967296)) >>> 0
+  const rand = mulberry32(seed)
+
+  const unused = library.stacks.filter((s) => !state.usedStackIds.includes(s.id))
+  const next = unused.length ? unused[Math.floor(rand() * unused.length)] : null
+
+  const r = rand()
+  let mode = !next ? 'unique' : r < CHANCE_DUPES_ONLY ? 'dupes' : r < CHANCE_DUPES_ONLY + CHANCE_UNIQUE_ONLY ? 'unique' : 'both'
+  const intake =
+    mode === 'unique'
+      ? uniqueIntake(rand, library, 5, 24)
+      : uniqueIntake(rand, library, 3, 12)
   const stackBytes = next ? next.bytes : 0
 
-  if (stats.freeBytes < stackBytes + intake.bytes) return withNudge(state, OUT_OF_SPACE_NUDGE)
+  // If what was rolled does not fit, settle for whatever part of it does rather
+  // than refusing the press outright.
+  const fits = (need) => stats.freeBytes >= need
+  if (mode === 'both' && !fits(stackBytes + intake.bytes)) mode = fits(stackBytes) ? 'dupes' : 'unique'
+  if (mode === 'dupes' && !fits(stackBytes)) mode = 'unique'
+  if (mode === 'unique' && !fits(intake.bytes)) return withNudge(state, OUT_OF_SPACE_NUDGE)
+
+  const wantsStack = mode !== 'unique'
+  const wantsUnique = mode !== 'dupes'
 
   const floor = state.quotaBytes * MIN_CAPACITY_SHARE
-  const advance = (s) => ({
-    ...s,
+  const advance = (patch) => ({
+    ...state,
+    ...patch,
     spawnSeed: (state.spawnSeed * 1664525 + 1013904223) >>> 0,
     nudge: null,
     dirty: true,
   })
 
   let clouds = state.clouds
+  let host = null
 
-  if (!next) {
-    // No new kinds of duplicate left — these are just more photos.
-    const absorbed = absorbUnique(clouds, intake, floor, rand)
-    if (!absorbed) return withNudge(state, OUT_OF_SPACE_NUDGE)
-    return advance({ ...state, clouds: absorbed })
+  if (wantsStack) {
+    host = clouds
+      .filter((c) => c.type === 'free' && c.phase !== 'leaving')
+      .sort((a, b) => b.capacity - a.capacity)[0]
+
+    // A white cloud that can hold the whole stack simply fills up and turns slate.
+    const fillsAWhiteCloud = host && (host.capacity >= stackBytes || clouds.length >= state.cloudCap)
+
+    if (fillsAWhiteCloud) {
+      clouds = clouds.map((c) =>
+        c.id === host.id
+          ? {
+              ...c,
+              type: 'similar',
+              groupId: next.id,
+              capacity: stackBytes,
+              bytes: stackBytes,
+              photos: next.count,
+              filling: (c.filling ?? 0) + 1,
+            }
+          : c,
+      )
+      // Whatever the white cloud had spare goes back to the others; if it was too
+      // small, the shortfall comes out of them instead.
+      clouds = rebalance(clouds, host.capacity - stackBytes, floor, rand, host.id)
+    } else {
+      host = null
+      clouds = adjustFree(clouds, -stackBytes, floor)
+      const spot = seedSpot(rand, clouds)
+      clouds = [
+        ...clouds,
+        {
+          id: `c-sim-${next.id}`,
+          type: 'similar',
+          groupId: next.id,
+          xPct: spot.x,
+          yPct: spot.y,
+          capacity: stackBytes,
+          bytes: stackBytes,
+          photos: next.count,
+          size: 12,
+          seed: Math.floor(rand() * 1e6),
+          phase: 'idle',
+          entering: true,
+        },
+      ]
+    }
   }
 
-  const whites = clouds
-    .filter((c) => c.type === 'free' && c.phase !== 'leaving')
-    .sort((a, b) => b.capacity - a.capacity)
-  const host = whites[0]
-
-  // A white cloud that can hold the whole stack simply fills up and turns slate.
-  const fillsAWhiteCloud = host && (host.capacity >= stackBytes || clouds.length >= state.cloudCap)
-
-  if (fillsAWhiteCloud) {
-    clouds = clouds.map((c) =>
-      c.id === host.id
-        ? {
-            ...c,
-            type: 'similar',
-            groupId: next.id,
-            capacity: stackBytes,
-            bytes: stackBytes,
-            photos: next.count,
-            filling: (c.filling ?? 0) + 1,
-          }
-        : c,
-    )
-    // Whatever the white cloud had spare goes back to the others; if it was too
-    // small, the shortfall comes out of them instead.
-    clouds = rebalance(clouds, host.capacity - stackBytes, floor, rand, host.id)
-  } else {
-    clouds = adjustFree(clouds, -stackBytes, floor)
-    const spot = seedSpot(rand, clouds)
-    clouds = [
-      ...clouds,
-      {
-        id: `c-sim-${next.id}`,
-        type: 'similar',
-        groupId: next.id,
-        xPct: spot.x,
-        yPct: spot.y,
-        capacity: stackBytes,
-        bytes: stackBytes,
-        photos: next.count,
-        size: 12,
-        seed: Math.floor(rand() * 1e6),
-        phase: 'idle',
-        entering: true,
-      },
-    ]
+  if (wantsUnique) {
+    // On their own the one-offs sometimes get a blue cloud of their own; next to a
+    // burst they just top one up, so a single press never rearranges the whole sky.
+    const fresh = mode === 'unique' && rand() < 0.4 && clouds.length < state.cloudCap
+    const placed = absorbUnique(clouds, intake, floor, rand, { fresh, reservedId: host?.id })
+    if (placed) clouds = placed
+    else if (!wantsStack) return withNudge(state, OUT_OF_SPACE_NUDGE)
   }
 
-  // The one-offs from the same afternoon. If there is genuinely nowhere left to
-  // put them the burst still lands — better than refusing the whole press.
-  const withUnique = absorbUnique(clouds, intake, floor, rand, host?.id)
-  if (withUnique) clouds = withUnique
-
-  return advance({
-    ...state,
-    clouds,
-    groups: { ...state.groups, [next.id]: next },
-    usedStackIds: [...state.usedStackIds, next.id],
-  })
+  return advance(
+    wantsStack
+      ? {
+          clouds,
+          groups: { ...state.groups, [next.id]: next },
+          usedStackIds: [...state.usedStackIds, next.id],
+        }
+      : { clouds },
+  )
 }
 
 function cleanGroup(state, { groupId, keptIds }) {
@@ -501,7 +539,7 @@ export function skyReducer(state, action) {
       return spawnClouds(state)
 
     case 'ADD_PHOTOS':
-      return addPhotos(state)
+      return addPhotos(state, action.roll)
 
     case 'CLEAN_GROUP':
       return cleanGroup(state, action)

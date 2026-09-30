@@ -9,7 +9,10 @@ import { formatCount, formatSize } from '../lib/format.js'
  * Tapping photos adjusts the keep set for anyone who wants to.
  */
 export function GalleryModal({ group, originRect, reducedMotion, onCancel, onConfirm }) {
-  const [kept, setKept] = useState(() => new Set([group.samples[0].id]))
+  // Blue clouds open to be looked at, not cleaned: nothing in them is a duplicate,
+  // so there is no keep set, no deletion, and nothing to confirm.
+  const readOnly = group.kind === 'unique'
+  const [kept, setKept] = useState(() => new Set([group.samples[0]?.id]))
   const [busy, setBusy] = useState(false)
   const dialogRef = useRef(null)
   const primaryRef = useRef(null)
@@ -140,6 +143,7 @@ export function GalleryModal({ group, originRect, reducedMotion, onCancel, onCon
               key={item.id}
               item={item}
               kept={kept.has(item.id)}
+              readOnly={readOnly}
               onToggle={() => toggle(item.id)}
               ref={(node) => {
                 if (node) tiles.current.set(item.id, node)
@@ -147,23 +151,41 @@ export function GalleryModal({ group, originRect, reducedMotion, onCancel, onCon
               }}
             />
           ))}
-          <MoreTile count={group.count - group.samples.length} />
+          {group.count > group.samples.length && (
+            <MoreTile
+              count={group.count - group.samples.length}
+              label={readOnly ? 'more, each one different' : undefined}
+            />
+          )}
         </div>
 
         <footer className="modal__foot">
-          <button
-            type="button"
-            className="btn btn--danger"
-            ref={primaryRef}
-            onClick={confirm}
-            disabled={busy}
-          >
-            Delete {formatCount(deleteCount)} duplicates
-            <span className="btn__note">frees {formatSize(freed)}</span>
-          </button>
-          <button type="button" className="btn btn--quiet" onClick={onCancel} disabled={busy}>
-            Keep them all
-          </button>
+          {readOnly ? (
+            <button
+              type="button"
+              className="btn btn--primary"
+              ref={primaryRef}
+              onClick={onCancel}
+            >
+              Close
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn btn--danger"
+                ref={primaryRef}
+                onClick={confirm}
+                disabled={busy}
+              >
+                Delete {formatCount(deleteCount)} duplicates
+                <span className="btn__note">frees {formatSize(freed)}</span>
+              </button>
+              <button type="button" className="btn btn--quiet" onClick={onCancel} disabled={busy}>
+                Keep them all
+              </button>
+            </>
+          )}
         </footer>
       </div>
     </div>

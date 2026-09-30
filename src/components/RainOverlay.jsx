@@ -72,10 +72,11 @@ export function RainOverlay({ raining, drops, level }) {
         <svg className="flood__wave" viewBox="0 0 240 26" preserveAspectRatio="none">
           {/* Rounder and deeper than a sine wave: comic water is drawn in
               scallops, and the crest needs to survive being 20px tall. */}
-          <path
-            className="flood__crest"
-            d="M0 13 C 10 0 20 0 30 13 C 40 26 50 26 60 13 C 70 0 80 0 90 13 C 100 26 110 26 120 13 C 130 0 140 0 150 13 C 160 26 170 26 180 13 C 190 0 200 0 210 13 C 220 26 230 26 240 13 V26 H0 Z"
-          />
+          <path className="flood__crest" d="M0 13 C 10 0 20 0 30 13 C 40 26 50 26 60 13 C 70 0 80 0 90 13 C 100 26 110 26 120 13 C 130 0 140 0 150 13 C 160 26 170 26 180 13 C 190 0 200 0 210 13 C 220 26 230 26 240 13 V26 H0 Z" />
+          {/* The ink is a separate, open path along the curve alone. Stroking the
+              filled shape would also draw its straight bottom edge, leaving a
+              hard line across the water. */}
+          <path className="flood__ink" d="M0 13 C 10 0 20 0 30 13 C 40 26 50 26 60 13 C 70 0 80 0 90 13 C 100 26 110 26 120 13 C 130 0 140 0 150 13 C 160 26 170 26 180 13 C 190 0 200 0 210 13 C 220 26 230 26 240 13" />
         </svg>
         <span className="flood__body" />
       </div>

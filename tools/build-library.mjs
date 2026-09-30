@@ -17,6 +17,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { clusterPhotos } from '../src/lib/duplicates.js'
+import { MIN_STACK, splitSingles, SAMPLE_LIMIT } from '../src/lib/chunking.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SOURCE_DIR = join(HERE, 'sources')
@@ -220,7 +221,7 @@ async function main() {
   const byId = new Map(photos.map((p) => [p.i, p]))
   let shipped = 0
   for (const cluster of clusters) {
-    if (cluster.length < 3) continue
+    if (cluster.length < MIN_STACK) continue
     for (const photo of cluster.slice(0, THUMBS_PER_CLUSTER)) {
       const buffer = buffers.get(photo.i)
       if (!buffer) continue
@@ -229,7 +230,21 @@ async function main() {
       shipped += 1
     }
   }
-  console.log(`  detected ${clusters.filter((c) => c.length >= 3).length} stacks, ${shipped} thumbnails`)
+
+  // The blue clouds open too, so the one-off photographs need thumbnails of
+  // their own. The browser slices the singles with the very same function, so
+  // what is shipped here is exactly what a chunk's gallery will ask for.
+  const singles = clusters.filter((c) => c.length < MIN_STACK).flat()
+  for (const chunk of splitSingles(singles)) {
+    for (const photo of chunk.slice(0, SAMPLE_LIMIT)) {
+      const buffer = buffers.get(photo.i)
+      if (!buffer) continue
+      await thumbnail(buffer, join(THUMB_DIR, `${photo.i}.webp`))
+      byId.get(photo.i).t = 1
+      shipped += 1
+    }
+  }
+  console.log(`  detected ${clusters.filter((c) => c.length >= MIN_STACK).length} stacks, ${shipped} thumbnails`)
 
   const totalBytes = photos.reduce((sum, p) => sum + p.b, 0)
   await writeFile(

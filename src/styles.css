@@ -321,6 +321,13 @@ button {
   z-index: 2;
 }
 
+/* Blue clouds open too, to look at what is in them — but one layer down, so where
+   a blue and a slate cloud overlap, a tap still reaches the slate one. */
+.cloud.cloud--unique.is-openable {
+  pointer-events: auto;
+  z-index: 1;
+}
+
 .cloud.is-clearing {
   pointer-events: none;
 }
@@ -348,8 +355,12 @@ button {
 
 .cloud--similar .cloud__hit {
   cursor: pointer;
-  /* Motion as affordance: only the clouds worth tapping breathe. */
+  /* Motion as affordance: only the clouds worth acting on breathe. */
   animation: breathe 4.6s ease-in-out infinite;
+}
+
+.cloud--unique .cloud__hit {
+  cursor: pointer;
 }
 
 .cloud__hit:focus-visible {
@@ -513,7 +524,6 @@ button {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, #7cc0f0 0%, #4f9ad9 55%, #2f7bbd 100%);
-  border-top: 3px solid #1f5c92;
   opacity: 0.92;
 }
 
@@ -530,10 +540,15 @@ button {
 
 .flood__crest {
   fill: #7cc0f0;
+  opacity: 0.92;
+}
+
+.flood__ink {
+  fill: none;
   stroke: #1f5c92;
   stroke-width: 3;
   stroke-linejoin: round;
-  opacity: 0.92;
+  stroke-linecap: round;
 }
 
 .rain:not(.is-on) .flood__wave {
@@ -798,6 +813,20 @@ button {
   opacity: 1;
   border-color: var(--action);
   transform: scale(1.04) rotate(var(--tilt, 0deg));
+}
+
+/* Just looking: nothing is marked for deletion, so nothing is dimmed or badged. */
+.thumb.is-view {
+  opacity: 1;
+  cursor: default;
+}
+
+.thumb.is-view .thumb__img {
+  filter: none;
+}
+
+.thumb.is-view .thumb__badge {
+  display: none;
 }
 
 .thumb__img {

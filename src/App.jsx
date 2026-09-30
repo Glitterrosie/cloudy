@@ -20,7 +20,7 @@ const WIN_HOLD_MS = 14000
 
 export default function App() {
   const [state, dispatch] = useReducer(skyReducer, undefined, buildInitialState)
-  const [openGroupId, setOpenGroupId] = useState(null)
+  const [openCloudId, setOpenCloudId] = useState(null)
   const [originRect, setOriginRect] = useState(null)
   const skyRef = useRef(null)
 
@@ -36,7 +36,7 @@ export default function App() {
 
   const reset = useCallback(() => {
     stopRain()
-    setOpenGroupId(null)
+    setOpenCloudId(null)
     setOriginRect(null)
     dispatch({ type: 'RESET' })
   }, [stopRain])
@@ -70,7 +70,7 @@ export default function App() {
 
   const openCloud = useCallback((cloud, rect) => {
     setOriginRect(rect)
-    setOpenGroupId(cloud.groupId)
+    setOpenCloudId(cloud.id)
   }, [])
 
   const settleCloud = useCallback((id) => dispatch({ type: 'SETTLE_CLOUD', id }), [])
@@ -78,7 +78,9 @@ export default function App() {
 
   const buyStorage = useCallback(() => dispatch({ type: 'BUY_STORAGE' }), [])
 
-  const addPhotos = useCallback(() => dispatch({ type: 'ADD_PHOTOS' }), [])
+  // What a press of "Take new pictures" brings is random, and the randomness is
+  // drawn here rather than in the reducer, which has to stay pure.
+  const addPhotos = useCallback(() => dispatch({ type: 'ADD_PHOTOS', roll: Math.random() }), [])
 
   // Rain is asked for now, and how hard it comes down is decided by how many
   // duplicate clouds are overhead.
@@ -90,16 +92,32 @@ export default function App() {
     pour(rainForce(stats.similarCount))
   }, [pour, stats.similarCount])
 
+  const openGroup = useMemo(() => {
+    const cloud = openCloudId ? state.clouds.find((c) => c.id === openCloudId) : null
+    const group = cloud?.groupId ? state.groups[cloud.groupId] : null
+    if (!group) return null
+    // A blue cloud's contents change as photos are added to it or it swallows a
+    // neighbour, so its count and size come from the cloud, not from the chunk
+    // it started as. Only the thumbnails are the chunk's own.
+    if (cloud.type === 'unique') {
+      return {
+        ...group,
+        count: cloud.photos,
+        bytes: cloud.bytes,
+        label: `${cloud.photos} photos that only exist once`,
+      }
+    }
+    return group
+  }, [openCloudId, state.clouds, state.groups])
   const confirmDelete = useCallback(
     (keptIds) => {
-      dispatch({ type: 'CLEAN_GROUP', groupId: openGroupId, keptIds })
-      setOpenGroupId(null)
+      dispatch({ type: 'CLEAN_GROUP', groupId: openGroup?.id, keptIds })
+      setOpenCloudId(null)
       setOriginRect(null)
     },
-    [openGroupId],
+    [openGroup],
   )
 
-  const openGroup = openGroupId ? state.groups[openGroupId] : null
   const modalOpen = Boolean(openGroup)
 
   // Weighted by how many duplicate clouds are left rather than by their share, so
@@ -173,7 +191,7 @@ export default function App() {
           originRect={originRect}
           reducedMotion={reducedMotion}
           onCancel={() => {
-            setOpenGroupId(null)
+            setOpenCloudId(null)
             setOriginRect(null)
           }}
           onConfirm={confirmDelete}

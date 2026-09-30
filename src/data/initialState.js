@@ -1,4 +1,5 @@
 import { analyseLibrary, uniqueChunks } from './library.js'
+import { UNIQUE_CHUNKS } from '../lib/chunking.js'
 
 // The demo library is 613 real photographs totalling about 120 MB, of which the
 // opening sky holds about 77 MB. A quota a little above that keeps the "nearly
@@ -17,7 +18,7 @@ export const DEFAULT_SKY_ASPECT = 1.7
 // How many detected stacks the opening sky shows. The rest are photographs you
 // have not taken yet, and arrive via "Take new pictures".
 export const OPENING_STACKS = 4
-const OPENING_UNIQUE = 3
+const OPENING_UNIQUE = UNIQUE_CHUNKS
 const OPENING_FREE = 3
 
 /**
@@ -47,6 +48,9 @@ export function buildInitialState() {
   opening.forEach((stack) => {
     groups[stack.id] = stack
   })
+  chunks.forEach((chunk) => {
+    groups[chunk.id] = chunk
+  })
 
   const usedBytes =
     opening.reduce((sum, s) => sum + s.bytes, 0) + chunks.reduce((sum, c) => sum + c.bytes, 0)
@@ -59,7 +63,7 @@ export function buildInitialState() {
     return {
       id: `c-${spec.key}`,
       type: spec.type,
-      groupId: stack?.id ?? null,
+      groupId: stack?.id ?? chunk?.id ?? null,
       xPct: spec.x,
       yPct: spec.y,
       // capacity is the storage space this cloud *is*; bytes is the data in it.
