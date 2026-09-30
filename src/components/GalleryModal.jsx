@@ -128,6 +128,9 @@ export function GalleryModal({ group, originRect, reducedMotion, onCancel, onCon
         aria-labelledby="gallery-title"
       >
         <header className="modal__head">
+          <button type="button" className="modal__back" onClick={onCancel} disabled={busy}>
+            <span aria-hidden="true">←</span> Back
+          </button>
           <h2 className="modal__title" id="gallery-title">
             {group.label}
           </h2>

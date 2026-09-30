@@ -272,7 +272,13 @@ button {
   padding: 14px 16px;
   border-radius: 20px;
   background: rgba(255, 253, 246, 0.92);
-  animation: rise-in 700ms ease-out both;
+  animation: rise-in 700ms ease-out backwards;
+  transition: opacity 1600ms ease;
+}
+
+.sky__win.is-gone {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sky__win-line {
@@ -755,8 +761,37 @@ button {
 }
 
 .modal__head {
+  position: relative;
   text-align: center;
   margin-bottom: 12px;
+}
+
+.modal__back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal__back:hover:not(:disabled) {
+  background: rgba(31, 92, 146, 0.1);
+}
+
+.modal__back:disabled {
+  opacity: 0.4;
+}
+
+/* Keep the title clear of the back button on narrow screens. */
+.modal__title {
+  padding: 0 72px;
 }
 
 .modal__title {

@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component {
           ☁️
         </p>
         <h1>The sky needs a moment.</h1>
-        <p>Nothing was lost — there is nothing saved to lose.</p>
+        <p>Nothing was lost, because there is nothing saved to lose.</p>
         <button type="button" className="btn btn--primary" onClick={() => window.location.reload()}>
           Start again
         </button>

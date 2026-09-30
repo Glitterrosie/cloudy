@@ -16,6 +16,24 @@ import { Controls } from './components/Controls.jsx'
 import { GalleryModal } from './components/GalleryModal.jsx'
 import { clamp } from './lib/rng.js'
 
+const formatClock = (d) =>
+  d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+
+/** The current time, refreshed each time the minute changes. */
+function useClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    let timer
+    const tick = () => {
+      setNow(new Date())
+      timer = setTimeout(tick, 60000 - (Date.now() % 60000) + 50)
+    }
+    timer = setTimeout(tick, 60000 - (Date.now() % 60000) + 50)
+    return () => clearTimeout(timer)
+  }, [])
+  return formatClock(now)
+}
+
 const WIN_HOLD_MS = 14000
 
 export default function App() {
@@ -124,11 +142,13 @@ export default function App() {
   // the opening sky reads as genuinely heavy and clearing it really lifts the light.
   const clearness = 1 - clamp(stats.similarCount / 6, 0, 1)
 
+  const clock = useClock()
+
   return (
     <div className="app">
       <div className="device" inert={modalOpen ? '' : undefined}>
         <div className="device__status" aria-hidden="true">
-          <span>16:40</span>
+          <span>{clock}</span>
           <span className="device__status-icons">
             <i className="bar" />
             <i className="bar" />

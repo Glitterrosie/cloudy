@@ -254,7 +254,7 @@ async function main() {
 
   // --- credits ------------------------------------------------------------
   const rows = [...Object.values(sources.bursts), ...sources.fillers]
-    .map((s) => `| ${s.title.replace(/^File:/, '')} | ${s.licence} | ${s.artist || '—'} |`)
+    .map((s) => `| ${s.title.replace(/^File:/, '')} | ${s.licence} | ${s.artist || 'unknown'} |`)
     .join('\n')
   await writeFile(
     CREDITS_OUT,
