@@ -53,8 +53,27 @@ export function analyseLibrary() {
 
   const started = typeof performance !== 'undefined' ? performance.now() : 0
   const clusters = clusterPhotos(libraryData.photos)
-  const stacks = clusters.filter((c) => c.length >= MIN_STACK).map(describe)
   const singles = clusters.filter((c) => c.length < MIN_STACK).flat()
+
+  // One subject can legitimately break into more than one stack — a burst of
+  // eighteen blurred concert frames splits where the blur stops bridging them,
+  // and the detector is right to say so. But the id keys `groups` and
+  // `usedStackIds`, so a repeat has to be made distinct or the second stack
+  // would overwrite the first and never be reachable.
+  const seen = new Set()
+  const stacks = clusters
+    .filter((c) => c.length >= MIN_STACK)
+    .map(describe)
+    .map((stack) => {
+      if (!seen.has(stack.id)) {
+        seen.add(stack.id)
+        return stack
+      }
+      let n = 2
+      while (seen.has(`${stack.id}-${n}`)) n += 1
+      seen.add(`${stack.id}-${n}`)
+      return { ...stack, id: `${stack.id}-${n}` }
+    })
 
   cache = {
     stacks,

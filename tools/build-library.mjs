@@ -25,10 +25,38 @@ const DATA_OUT = join(HERE, '..', 'src', 'data', 'library.json')
 const CREDITS_OUT = join(HERE, '..', 'CREDITS.md')
 
 // Tune these to change the size of the library.
-const VARIANTS_PER_BURST = 72 // 12 bursts x 72 ≈ 864 near-duplicates
 const THUMBS_PER_CLUSTER = 12 // only what the gallery can actually show is shipped
 const FULL_WIDTH = 1600 // the "original" whose real byte size we record
 const THUMB_WIDTH = 220
+
+/**
+ * How many frames each burst ran to — the whole point being that they differ.
+ * Nobody shoots the same number of frames twice: you hold the shutter until the
+ * moment passes, and the moment is a different length every time. A uniform 72
+ * everywhere made every stack in the sky report the same count, which read as a
+ * generated number rather than an observed one.
+ *
+ * The counts run 10 → 80 and are spread across that whole range. They are also
+ * paired to subjects deliberately rather than sorted: per-frame file size varies
+ * 3.6x across these photographs, and clouds are sized by bytes rather than by
+ * count, so pairing a long burst with heavy frames every time would make cloud
+ * size a second copy of the count. Mixing them keeps the two readings
+ * independent — a small cloud with a big number is exactly the interesting case.
+ */
+const BURST_FRAMES = {
+  tulips: 10,
+  church: 12,
+  concert: 18,
+  bike: 22,
+  dog: 26,
+  canal: 30,
+  sunset: 38,
+  cat: 46,
+  beach: 55,
+  windmill: 62,
+  dinner: 74,
+  latte: 80,
+}
 
 // Wry one-liners, paired to the burst themes by id.
 const SUBLINES = {
@@ -40,7 +68,7 @@ const SUBLINES = {
   windmill: 'It turns. You did not need this many.',
   dinner: 'It went cold while you found the angle.',
   concert: 'Blurry, all of them. You were there anyway.',
-  beach: 'Same sea, same sand, forty-eight times.',
+  beach: 'Same sea, same sand, over and over.',
   cat: 'She had not moved since the last one.',
   bike: 'In case you forgot where you parked it.',
   church: 'You will never look at these again.',
@@ -146,8 +174,9 @@ async function main() {
       [...id].reduce((a, c) => a + c.charCodeAt(0) * 31, 7),
     )
     themes[id] = { subject: source.subject, subline: SUBLINES[id] ?? '' }
+    const frames = BURST_FRAMES[id] ?? 72
 
-    for (let i = 0; i < VARIANTS_PER_BURST; i += 1) {
+    for (let i = 0; i < frames; i += 1) {
       const buffer = await makeVariant(base, rand)
       const photoId = `${id}-${i}`
       // Keep a few frames per stack in memory; the gallery only ever shows a
@@ -162,7 +191,7 @@ async function main() {
         s: id,
       })
     }
-    console.log(`  burst  ${id.padEnd(9)} ${VARIANTS_PER_BURST} frames`)
+    console.log(`  burst  ${id.padEnd(9)} ${frames} frames`)
   }
 
   // --- one-off photos, the "unique data" ----------------------------------

@@ -34,6 +34,20 @@ export function sizeForShare(share, aspect) {
 }
 
 /**
+ * How far apart two laid-out clouds are, in the same normalised units the packer
+ * uses: 1 is exactly touching, 0 is concentric. Below 1 the two shapes overlap,
+ * which after a full packing pass only happens when the sky is too crowded for
+ * the packer to separate them — which is the signal that they should merge.
+ */
+export function separation(a, b, aspect) {
+  const sumX = ((a.size + b.size) / 2) * NESTLE
+  const sumY = (((a.size + b.size) * CLOUD_ASPECT) / 2) * NESTLE
+  const dx = (b.xPct - a.xPct) / sumX
+  const dy = ((b.yPct - a.yPct) * aspect) / sumY
+  return Math.hypot(dx, dy)
+}
+
+/**
  * Nudge overlapping clouds apart until they sit shoulder to shoulder.
  *
  * Overlap is measured in normalised space — each axis divided by the sum of the

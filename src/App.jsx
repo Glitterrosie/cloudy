@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { buildInitialState } from './data/initialState.js'
-import { skyReducer, selectStats } from './state/skyReducer.js'
-import { useRain } from './state/useRain.js'
+import { skyReducer, selectStats, NOTHING_TO_RAIN_NUDGE } from './state/skyReducer.js'
+import { useRain, rainForce } from './state/useRain.js'
 import { useIdleReset } from './state/useIdleReset.js'
 import {
   usePageVisible,
@@ -11,11 +11,9 @@ import {
 } from './state/useEnvironment.js'
 import { Sky } from './components/Sky.jsx'
 import { StorageBar } from './components/StorageBar.jsx'
-import { RainGauge } from './components/RainGauge.jsx'
 import { Legend } from './components/Legend.jsx'
 import { Controls } from './components/Controls.jsx'
 import { GalleryModal } from './components/GalleryModal.jsx'
-import { InfoModal } from './components/InfoModal.jsx'
 import { clamp } from './lib/rng.js'
 
 const WIN_HOLD_MS = 14000
@@ -24,7 +22,6 @@ export default function App() {
   const [state, dispatch] = useReducer(skyReducer, undefined, buildInitialState)
   const [openGroupId, setOpenGroupId] = useState(null)
   const [originRect, setOriginRect] = useState(null)
-  const [showInfo, setShowInfo] = useState(false)
   const skyRef = useRef(null)
 
   const visible = usePageVisible()
@@ -32,17 +29,17 @@ export default function App() {
   useWakeLock(visible)
 
   const stats = useMemo(() => selectStats(state), [state])
-  const { raining, drops, level } = useRain(stats.similarCount, { enabled: visible })
+  const { raining, drops, level, pour, stop: stopRain } = useRain({ enabled: visible })
 
   const setSky = useCallback(({ cap, aspect }) => dispatch({ type: 'SET_SKY', cap, aspect }), [])
   useCloudCap(skyRef, setSky)
 
   const reset = useCallback(() => {
+    stopRain()
     setOpenGroupId(null)
-    setShowInfo(false)
     setOriginRect(null)
     dispatch({ type: 'RESET' })
-  }, [])
+  }, [stopRain])
 
   // Back to the opening frame for the next visitor, whether they pressed Reset,
   // reloaded, or the last person simply walked away.
@@ -83,6 +80,16 @@ export default function App() {
 
   const addPhotos = useCallback(() => dispatch({ type: 'ADD_PHOTOS' }), [])
 
+  // Rain is asked for now, and how hard it comes down is decided by how many
+  // duplicate clouds are overhead.
+  const makeItRain = useCallback(() => {
+    if (stats.similarCount === 0) {
+      dispatch({ type: 'NUDGE', message: NOTHING_TO_RAIN_NUDGE })
+      return
+    }
+    pour(rainForce(stats.similarCount))
+  }, [pour, stats.similarCount])
+
   const confirmDelete = useCallback(
     (keptIds) => {
       dispatch({ type: 'CLEAN_GROUP', groupId: openGroupId, keptIds })
@@ -93,7 +100,7 @@ export default function App() {
   )
 
   const openGroup = openGroupId ? state.groups[openGroupId] : null
-  const modalOpen = Boolean(openGroup) || showInfo
+  const modalOpen = Boolean(openGroup)
 
   // Weighted by how many duplicate clouds are left rather than by their share, so
   // the opening sky reads as genuinely heavy and clearing it really lifts the light.
@@ -115,7 +122,6 @@ export default function App() {
         <div className="screen">
           <header className="topbar">
             <h1 className="wordmark">Cloudy</h1>
-            <RainGauge intensity={stats.intensity} raining={raining} />
             <button type="button" className="btn btn--ghost" onClick={reset}>
               Reset
             </button>
@@ -130,7 +136,7 @@ export default function App() {
             freedBytes={state.freedBytes}
           />
 
-          <Legend onOpenInfo={() => setShowInfo(true)} />
+          <Legend />
 
           <Sky
             ref={skyRef}
@@ -156,6 +162,7 @@ export default function App() {
       <Controls
         onBuyStorage={buyStorage}
         onAddPhotos={addPhotos}
+        onMakeItRain={makeItRain}
         nudge={state.nudge}
         nudgeToken={state.nudgeToken}
       />
@@ -172,8 +179,6 @@ export default function App() {
           onConfirm={confirmDelete}
         />
       )}
-
-      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
     </div>
   )
 }

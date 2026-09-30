@@ -39,6 +39,10 @@ function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled, onLeft
   const shape = useCloudShape(cloud.seed)
   const evapRef = useRef(null)
   const interactive = cloud.type === 'similar' && cloud.phase === 'idle'
+  // The group is the authority for a stack that is open to be cleaned; for every
+  // other cloud the count lives on the cloud, because it is the running total of
+  // whatever has been added to or taken out of it.
+  const photoCount = cloud.type === 'similar' && group ? group.count : (cloud.photos ?? 0)
 
   // A new cloud bubbles up into place rather than appearing from nowhere.
   useEffect(() => {
@@ -105,25 +109,26 @@ function CloudComponent({ cloud, group, reducedMotion, onOpen, onSettled, onLeft
           <circle key={i} cx={lobe.cx} cy={lobe.cy} r={lobe.r} />
         ))}
       </g>
-      {/* Shape as well as colour: a stack of photos for duplicates, a single photo
-          for unique data, nothing at all for free space. */}
+      {/* Shape as well as colour: a stack of photos marks a duplicate cloud, and
+          nothing else carries a mark. */}
       {cloud.type === 'similar' && (
         <g className="cloud__motif">
-          <rect x="76" y="58" width="34" height="26" rx="5" transform="rotate(-8 93 71)" />
-          <rect x="86" y="62" width="34" height="26" rx="5" transform="rotate(4 103 75)" />
-          <rect x="96" y="66" width="34" height="26" rx="5" className="cloud__motif-top" />
-          {group && (
-            <text x="113" y="118" className="cloud__count" textAnchor="middle">
-              {formatCount(group.count)}
-            </text>
-          )}
+          <rect x="76" y="46" width="34" height="26" rx="5" transform="rotate(-8 93 59)" />
+          <rect x="86" y="50" width="34" height="26" rx="5" transform="rotate(4 103 63)" />
+          <rect x="96" y="54" width="34" height="26" rx="5" className="cloud__motif-top" />
         </g>
       )}
-      {cloud.type === 'unique' && (
-        <g className="cloud__motif">
-          <rect x="89" y="64" width="36" height="28" rx="5" className="cloud__motif-top" />
-        </g>
-      )}
+      {/* Every cloud says how many photographs are in it, free space included —
+          a nought is the plainest way to show that the room is there and empty,
+          and it is what makes a handful of new one-off photos visible at all. */}
+      <text
+        x="110"
+        y={cloud.type === 'similar' ? 112 : 92}
+        className="cloud__count"
+        textAnchor="middle"
+      >
+        {formatCount(photoCount)}
+      </text>
     </svg>
   )
 

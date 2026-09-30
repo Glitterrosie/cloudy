@@ -103,8 +103,10 @@ button {
   display: flex;
   flex-direction: column;
   background: var(--page);
-  padding: 0 14px;
-  padding-top: max(10px, env(safe-area-inset-top));
+  /* Even inset on every side, so the sky sits in the phone rather than running
+     off its bottom edge. The top only grows to clear a notch. */
+  padding: 14px;
+  padding-top: max(14px, env(safe-area-inset-top));
 }
 
 /* --- top bar -------------------------------------------------------------- */
@@ -124,48 +126,6 @@ button {
   font-weight: 700;
   letter-spacing: 0.5px;
   line-height: 1;
-}
-
-.gauge {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.gauge__drop {
-  width: 15px;
-  height: 15px;
-  fill: var(--cloud-similar);
-  transition: transform 400ms ease;
-}
-
-.gauge.is-raining .gauge__drop {
-  animation: drip 1.4s ease-in-out infinite;
-}
-
-.gauge__bars {
-  display: flex;
-  gap: 2px;
-  align-items: flex-end;
-}
-
-.gauge__bar {
-  width: 4px;
-  height: 7px;
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.16);
-  transition: background 600ms ease, height 400ms ease;
-}
-
-.gauge__bar:nth-child(2) { height: 10px; }
-.gauge__bar:nth-child(3) { height: 13px; }
-.gauge__bar:nth-child(4) { height: 16px; }
-
-.gauge__bar.is-on {
-  background: var(--cloud-similar);
 }
 
 /* --- storage bar ---------------------------------------------------------- */
@@ -257,20 +217,6 @@ button {
   fill: #e6edf4;
 }
 
-.legend__info {
-  margin-left: auto;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.08);
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 /* Small phones — an iPhone SE is 360px wide and the legend is the tightest row
    on the screen. Shrink it rather than let anything scroll sideways. */
 @media (max-width: 400px) {
@@ -289,15 +235,9 @@ button {
     height: 12px;
   }
 
-  .legend__info {
-    width: 23px;
-    height: 23px;
-    font-size: 0.85rem;
-  }
-
   .screen {
-    padding: 0 10px;
-    padding-top: max(8px, env(safe-area-inset-top));
+    padding: 11px;
+    padding-top: max(11px, env(safe-area-inset-top));
   }
 }
 
@@ -447,6 +387,15 @@ button {
   font-family: var(--font-display);
   font-size: 30px;
   font-weight: 700;
+  /* Matches the body's fill transition, so a cloud that empties changes colour
+     and changes the colour of its own number in the same beat. */
+  transition: fill 420ms ease;
+}
+
+/* A white cloud needs the number the other way round. It reads as slate rather
+   than black so a nought on an empty cloud stays quiet next to the full ones. */
+.cloud--free .cloud__count {
+  fill: rgba(74, 103, 133, 0.62);
 }
 
 .cloud.is-clearing .cloud__motif {
@@ -496,24 +445,56 @@ button {
   animation-play-state: paused;
 }
 
+/* The symbol the drops are stamped from: defined, never drawn. */
+.rain__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
 .drop {
   position: absolute;
   top: -14%;
-  width: 17px;
-  height: 17px;
-  background: #ffffff;
-  /* The classic cartoon teardrop: a circle with one corner left sharp. */
-  border-radius: 0 50% 50% 50%;
+  width: 22px;
+  height: 31px;
   opacity: 0;
-  box-shadow: inset -3px -3px 0 rgba(110, 170, 220, 0.6);
   animation: fall var(--fall) linear var(--delay) infinite;
 }
 
-.drop.is-active {
-  opacity: 0.95;
+.drop__art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-/* Water gathering at the bottom of the sky, then draining away. */
+/* Inked like a comic panel: a heavy outline drawn as a fatter copy of the same
+   path underneath, so the line thickens and thins with the shape instead of
+   ringing it evenly the way a stroke does. The outline is what lets a drop read
+   against the pale sky and against the white clouds it falls in front of — a
+   plain white drop disappeared on them. */
+.drop__ink {
+  fill: #1f5c92;
+  stroke: #1f5c92;
+  stroke-width: 3.4;
+  stroke-linejoin: round;
+}
+
+.drop__fill {
+  fill: #7cc0f0;
+}
+
+.drop__shine {
+  fill: #fff;
+  opacity: 0.9;
+}
+
+.drop.is-active {
+  opacity: 1;
+}
+
+/* Water gathering at the bottom of the sky, then draining away. Both durations
+   come from useRain.js, so the water and the shower share one clock. */
 .flood {
   position: absolute;
   left: 0;
@@ -521,30 +502,38 @@ button {
   bottom: 0;
   height: 0;
   pointer-events: none;
-  transition: height 1700ms cubic-bezier(0.3, 0.8, 0.4, 1);
+  transition: height var(--pour, 2150ms) cubic-bezier(0.3, 0.8, 0.4, 1);
 }
 
 .rain:not(.is-on) .flood {
-  transition: height 1300ms cubic-bezier(0.5, 0, 0.7, 0.2);
+  transition: height var(--drain, 1650ms) cubic-bezier(0.5, 0, 0.7, 0.2);
 }
 
 .flood__body {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #6bb2ea 0%, #3f8fd4 55%, #2f7bbd 100%);
-  opacity: 0.88;
+  background: linear-gradient(180deg, #7cc0f0 0%, #4f9ad9 55%, #2f7bbd 100%);
+  border-top: 3px solid #1f5c92;
+  opacity: 0.92;
 }
 
 .flood__wave {
   position: absolute;
   left: -20%;
   width: 140%;
-  height: 22px;
+  height: 26px;
   bottom: 100%;
-  margin-bottom: -1px;
-  fill: #6bb2ea;
-  opacity: 0.88;
-  animation: slosh 3.4s ease-in-out infinite alternate;
+  margin-bottom: -2px;
+  overflow: visible;
+  animation: slosh 4.6s ease-in-out infinite alternate;
+}
+
+.flood__crest {
+  fill: #7cc0f0;
+  stroke: #1f5c92;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  opacity: 0.92;
 }
 
 .rain:not(.is-on) .flood__wave {
@@ -670,6 +659,14 @@ button {
   color: #fff;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
   padding: 0.65rem 1.4rem;
+}
+
+.btn--rain {
+  background: #3f8fd4;
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+  padding: 0.55rem 1.5rem;
+  font-size: 0.95rem;
 }
 
 .btn--quiet {
@@ -978,9 +975,19 @@ button {
   50% { transform: scale(1.035); }
 }
 
+/* The drop is drawn pointing down already, so it only needs its own slight tilt —
+   and a beat of squash and stretch on the way, which is the difference between a
+   falling shape and a cartoon falling shape. */
 @keyframes fall {
-  from { transform: translate3d(0, -20%, 0) rotate(calc(-45deg + var(--tilt))) scale(var(--scale)); }
-  to { transform: translate3d(0, 80vh, 0) rotate(calc(-45deg + var(--tilt))) scale(var(--scale)); }
+  0% {
+    transform: translate3d(0, -20%, 0) rotate(var(--tilt)) scale(var(--scale)) scaleY(0.9);
+  }
+  18% {
+    transform: translate3d(0, 12vh, 0) rotate(var(--tilt)) scale(var(--scale)) scaleY(1.14);
+  }
+  100% {
+    transform: translate3d(0, 80vh, 0) rotate(var(--tilt)) scale(var(--scale)) scaleY(1.04);
+  }
 }
 
 @keyframes puff {
@@ -1013,11 +1020,6 @@ button {
 @keyframes nudge-pop {
   from { opacity: 0; transform: translateY(-4px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes drip {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(2px); }
 }
 
 @keyframes fade-in {
@@ -1053,7 +1055,7 @@ button {
   .device {
     flex: none;
     width: min(430px, 94%);
-    height: min(calc(100dvh - 190px), 880px);
+    height: min(calc(100dvh - 240px), 880px);
     border: 11px solid var(--bezel);
     border-radius: var(--radius-card);
     box-shadow: 0 26px 60px rgba(0, 0, 0, 0.3);
@@ -1088,7 +1090,8 @@ button {
   .device__status-icons .battery { width: 15px; height: 8px; border-radius: 2px; }
 
   .screen {
-    padding-top: 4px;
+    /* The drawn status bar already provides the gap above. */
+    padding-top: 8px;
   }
 
   .modal__grid {
@@ -1101,7 +1104,7 @@ button {
 @media (min-width: 700px) and (min-height: 950px) {
   .device {
     width: min(520px, 92%);
-    height: min(calc(100dvh - 200px), 1060px);
+    height: min(calc(100dvh - 250px), 1060px);
     border-width: 13px;
   }
 
@@ -1149,6 +1152,7 @@ button {
   .drop {
     animation: none;
     top: calc(var(--scale) * 40%);
+    transform: rotate(var(--tilt)) scale(var(--scale));
   }
 
   .flood,

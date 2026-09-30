@@ -1,7 +1,7 @@
 import { LOBES } from './Cloud.jsx'
 
-/** The legend teaches the shape cue as well as the colour, so the three types
- *  stay tellable apart in greyscale, under glare, or with colour-blindness. */
+/** The legend teaches the stack mark as well as the colour, so a duplicate cloud
+ *  stays tellable apart in greyscale, under glare, or with colour-blindness. */
 export function MiniCloud({ type }) {
   return (
     <svg viewBox="0 0 220 150" className={`mini cloud--${type}`} aria-hidden="true">
@@ -17,16 +17,11 @@ export function MiniCloud({ type }) {
           <rect x="96" y="66" width="34" height="26" rx="5" className="cloud__motif-top" />
         </g>
       )}
-      {type === 'unique' && (
-        <g className="cloud__motif">
-          <rect x="89" y="64" width="36" height="28" rx="5" className="cloud__motif-top" />
-        </g>
-      )}
     </svg>
   )
 }
 
-export function Legend({ onOpenInfo }) {
+export function Legend() {
   return (
     <div className="legend">
       <span className="legend__chip">
@@ -41,10 +36,6 @@ export function Legend({ onOpenInfo }) {
         <MiniCloud type="unique" />
         Unique photos
       </span>
-      <button type="button" className="legend__info" onClick={onOpenInfo}>
-        <span aria-hidden="true">?</span>
-        <span className="visually-hidden">What am I looking at?</span>
-      </button>
     </div>
   )
 }

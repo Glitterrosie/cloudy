@@ -1,10 +1,11 @@
 import { analyseLibrary, uniqueChunks } from './library.js'
 
-// The demo library is 1,004 real photographs totalling about 220 MB. A quota a
-// little above what the opening sky holds keeps the "nearly full" feeling
-// honest rather than inventing a round number.
-export const QUOTA_START_BYTES = 150e6
-export const QUOTA_STEP_BYTES = 50e6
+// The demo library is 613 real photographs totalling about 120 MB, of which the
+// opening sky holds about 77 MB. A quota a little above that keeps the "nearly
+// full" feeling honest rather than inventing a round number, while leaving room
+// for a couple of presses of "Take new pictures" before you hit the wall.
+export const QUOTA_START_BYTES = 112e6
+export const QUOTA_STEP_BYTES = 30e6
 export const DEFAULT_CLOUD_CAP = 22
 
 // Below this share of the quota a cloud is too small to read, and its space is
@@ -65,6 +66,9 @@ export function buildInitialState() {
       // They are equal for a full cloud and diverge the moment you delete.
       capacity: spec.type === 'free' ? freeEach : bytes,
       bytes,
+      // How many photographs are in this cloud. Printed on the face of it, so
+      // free space reads as a nought rather than as an absence.
+      photos: stack?.count ?? chunk?.count ?? 0,
       size: 20,
       seed: 101 + SEEDS.indexOf(spec) * 97,
       phase: 'idle',
