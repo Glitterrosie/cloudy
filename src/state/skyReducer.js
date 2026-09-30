@@ -229,8 +229,12 @@ function addPhotos(state, roll) {
   const seed = roll == null ? state.spawnSeed : (state.spawnSeed ^ Math.floor(roll * 4294967296)) >>> 0
   const rand = mulberry32(seed)
 
+  // Prefer a burst that fits the room left: drawing one blindly meant the big
+  // ones failed once the sky filled up, and every press quietly became one-offs.
   const unused = library.stacks.filter((s) => !state.usedStackIds.includes(s.id))
-  const next = unused.length ? unused[Math.floor(rand() * unused.length)] : null
+  const fitting = unused.filter((s) => s.bytes <= stats.freeBytes)
+  const pool = fitting.length ? fitting : unused
+  const next = pool.length ? pool[Math.floor(rand() * pool.length)] : null
 
   const r = rand()
   let mode = !next ? 'unique' : r < CHANCE_DUPES_ONLY ? 'dupes' : r < CHANCE_DUPES_ONLY + CHANCE_UNIQUE_ONLY ? 'unique' : 'both'
@@ -238,6 +242,12 @@ function addPhotos(state, roll) {
     mode === 'unique'
       ? uniqueIntake(rand, library, 5, 24)
       : uniqueIntake(rand, library, 3, 12)
+  // One-offs alone must not swallow the room a later burst needs.
+  const perSingle = library.singleBytes / Math.max(1, library.singleCount)
+  if (mode === 'unique' && intake.bytes > stats.freeBytes * 0.4) {
+    intake.count = Math.max(3, Math.floor((stats.freeBytes * 0.4) / perSingle))
+    intake.bytes = Math.round(perSingle * intake.count)
+  }
   const stackBytes = next ? next.bytes : 0
 
   // If what was rolled does not fit, settle for whatever part of it does rather

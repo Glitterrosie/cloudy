@@ -513,6 +513,9 @@ button {
   bottom: 0;
   height: 0;
   pointer-events: none;
+  /* Translucency lives on the whole pool, not its parts: two 92% layers that
+     overlap would show as a darker seam right under the surface. */
+  opacity: 0.92;
   transition: height var(--pour, 2150ms) cubic-bezier(0.3, 0.8, 0.4, 1);
 }
 
@@ -524,7 +527,6 @@ button {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, #7cc0f0 0%, #4f9ad9 55%, #2f7bbd 100%);
-  opacity: 0.92;
 }
 
 .flood__wave {
@@ -533,14 +535,13 @@ button {
   width: 140%;
   height: 26px;
   bottom: 100%;
-  margin-bottom: -2px;
+  margin-bottom: -6px;
   overflow: visible;
   animation: slosh 4.6s ease-in-out infinite alternate;
 }
 
 .flood__crest {
   fill: #7cc0f0;
-  opacity: 0.92;
 }
 
 .flood__ink {
